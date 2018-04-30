@@ -28,7 +28,7 @@ $(OBJ_D)/%.o: $(SRC_D)/%.c
 
 #-------------------------------------------------------------------------------
 ctags:
-	ctags -R {src,inc}/* lib/*/*.{c,h}
+	bash -c "ctags -R {src,inc}/* lib/*/*.{c,h}"
 
 clean:
 	rm -rfv $(OBJ_D)
