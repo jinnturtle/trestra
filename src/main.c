@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <stdlib.h> //atoi(), etc
 
 //system (unix/linux)
 #include <ncurses.h>
@@ -19,15 +20,23 @@
 int print_tasks(void);
 int activate_task(void);
 void main_menu(void);
-int get_tasks(struct Task *_tasks);
+int nc_inp(int _y, int _x, const char *_prompt, char *str_, unsigned _n);
+int update_task(struct Task *_task);
 int init_nc(void);
+
+/*TODO
+ * * [ ] print time format "XXXXXhXXm"
+ * * [ ] creating tasks
+ * * [ ] nesting tasks (subtasks) via assigning a parent id
+ * ** [ ] e.g. show_task menu option to display children
+ * ** [ ] indicate tasks that have children when printing
+ * ** [ ] add children fact and estimate times to parent when creating/modifying children
+ * * [ ] modifying tasks
+ */
 
 int main(void)
 {
     init_nc();
-
-    struct Task tasks[100];
-    get_tasks(&tasks[0]);
 
     main_menu();
 
@@ -92,7 +101,8 @@ int print_tasks(void)
         int fact = sqlite3_column_int(stmt, 5);
 
         double progress_perc = (100.0d / estimate) * fact;
-        printw("id: %d task: \"%s\" progress: %0.2lf\n", id, name, progress_perc);
+        printw("id: %d task: \"%s\" progress: %lu/%lu(%0.2lf%)\n",
+                id, name, fact, estimate, progress_perc);
     }
     if(rc != SQLITE_DONE) {
         mvprintw(0,0, "error querying the db: %s\n", sqlite3_errmsg(db));
@@ -105,31 +115,162 @@ int print_tasks(void)
     return 0;
 }
 
+int find_task(int _id, struct Task *task_)
+{
+    if(task_ == NULL) { return -1; }
+
+    char db_path[] = "dat/db.db";
+    sqlite3 *db;
+
+    if(sqlite3_open(db_path, &db) != SQLITE_OK) {
+        mvprintw(0,0, "Error opening database: %s\n", sqlite3_errmsg(db));
+        getch();
+        sqlite3_close(db);
+        return 1;
+    }
+
+    char sql_txt[] = "select * from tasks where id = ? limit 1";
+    sqlite3_stmt *stmt;
+
+    if(sqlite3_prepare_v3(db, sql_txt, strlen(sql_txt), 0, &stmt, NULL)
+       != SQLITE_OK)
+    {
+        mvprintw(0,0, "error while compiling sql: %s\n", sqlite3_errmsg(db));
+        getch();
+        sqlite3_finalize(stmt);
+        sqlite3_close(db);
+        return -1;
+    }
+
+    sqlite3_bind_int(stmt, 1, _id);
+
+    int rc = 0;
+    while((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+        task_->id = sqlite3_column_int(stmt, 0);
+        strcpy(task_->name, sqlite3_column_text(stmt, 3));
+        task_->estimate = sqlite3_column_int(stmt, 4);
+        task_->fact = sqlite3_column_int(stmt, 5);
+    }
+    if(rc != SQLITE_DONE) {
+        mvprintw(0,0, "error querying the db: %s\n", sqlite3_errmsg(db));
+        printw("retcode = %d\n", rc);
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+    return 0;
+}
+
 int activate_task(void)
 {
-    //TODO for now this only counts some seconds and does nothing else
+    struct Task task = { 0 };
+    char strbuf[10] = { 0 };
+    nc_inp(10, 10, "task id: ", strbuf, sizeof strbuf);
+
+    find_task(atoi(strbuf), &task);
+    if(task.id == 0) {
+        clear();
+        mvprintw(0,0, "could not find task! (press any key)");
+        getch();
+        return -1;
+    };
 
     clear();
 
-    time_t s_tm = time(NULL);
+    mvprintw(0,0, "active task: \"%s\" (%d)", task.name, task.id);
+
+    time_t s_tm = time(NULL); //start time
 
     halfdelay(1); //setting getch to wait for a limited ammount of time
 
+    time_t elapsed = 0;
     int cmd = 0;
     while(cmd != 'q') {
-        mvprintw(22,0, "time spent: %ld\n", time(NULL) - s_tm);
+        elapsed = time(NULL) - s_tm;
+        mvprintw(22,0, "session: %ld, total: %ld\n",
+                elapsed, task.fact + elapsed);
 
         cmd = getch();
     }
-
     cbreak(); //unlimiting getch wait time
+
+    task.fact += elapsed; //add elapsed time
+    update_task(&task);
 
     return 0;
 }
 
-int get_tasks(struct Task *_tasks) {
-    //TODO functionality
+int nc_inp(int _y, int _x, const char *_prompt, char *str_, unsigned _n)
+{
+    if(str_ == NULL) { return -1; }
 
+    int pos = 0;
+
+    int cmd = 0;
+    while(cmd != '\n') {
+        move(_y, _x);
+        if(_prompt != NULL) { printw("%s", _prompt); }
+
+        printw("%s", str_);
+        cmd = getch();
+
+        if(strlen(str_) >= _n - 1) {
+            mvprintw(_y + 1, _x, "max input length reached!");
+            continue;
+        }
+
+        switch(cmd) {
+        case '\n': break;
+        default:
+            str_[pos] = cmd;
+            ++pos;
+        }
+    }
+
+    return 0;
+}
+
+int update_task(struct Task *_task)
+{
+    if(_task == NULL) { return -1; }
+
+    char db_path[] = "dat/db.db";
+    sqlite3 *db;
+
+    if(sqlite3_open(db_path, &db) != SQLITE_OK) {
+        mvprintw(0,0, "Error opening database: %s\n", sqlite3_errmsg(db));
+        getch();
+        sqlite3_close(db);
+        return 1;
+    }
+
+    char sql_txt[] = "update tasks "
+                     "set time_spent = ? "
+                     "where id = ?";
+    sqlite3_stmt *stmt;
+
+    if(sqlite3_prepare_v3(db, sql_txt, strlen(sql_txt), 0, &stmt, NULL)
+       != SQLITE_OK)
+    {
+        mvprintw(0,0, "error while compiling sql: %s\n", sqlite3_errmsg(db));
+        getch();
+        sqlite3_finalize(stmt);
+        sqlite3_close(db);
+        return -1;
+    }
+
+    sqlite3_bind_int(stmt, 1, _task->fact);
+    sqlite3_bind_int(stmt, 2, _task->id);
+
+    if(sqlite3_step(stmt) != SQLITE_DONE) {
+        mvprintw(0,0, "error updating db: %s\n", sqlite3_errmsg(db));
+        getch();
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
     return 0;
 }
 

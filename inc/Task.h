@@ -1,6 +1,7 @@
 struct Task {
     time_t creation_time; //date and time when the task was created
     time_t status_time; //when was the status altered
+    char name[80];
     unsigned id;
     unsigned parent_id;
     unsigned orig_estimate; //original minutes estimated to complete the task

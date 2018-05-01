@@ -1,5 +1,6 @@
 #CXX = g++
 CC = gcc
+CC_DBG_F = -ggdb
 LD = gcc
 NAME = trestra
 _OBJ = main.o
@@ -24,7 +25,7 @@ $(OBJ_D):
 
 $(OBJ_D)/%.o: $(SRC_D)/%.c
 	echo "CC $@"
-	$(CC) -o $@ -c $(INC) $<
+	$(CC) -o $@ -c $(CC_DBG_F) $(INC) $<
 
 #$(OBJ_D)/%.o: $(SRC_D)/%.cpp
 #	echo "CXX $@"
