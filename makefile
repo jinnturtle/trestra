@@ -10,20 +10,24 @@ INC_D = inc
 INC = -I $(INC_D) \
       -I lib/sqlite3
 INC_O = lib/sqlite3/sqlite3.o
-LIBS = -lpthread -ldl
+LIBS = -lncurses -lpthread -ldl
 
 all: $(OBJ_D) $(NAME)
 
 $(NAME): $(OBJ)
-	$(LD) -o $(NAME) $^ $(INC_O) $(LIBS)
+	echo "LD $@"
+	$(LD) -o $@ $^ $(INC_O) $(LIBS)
 
 $(OBJ_D):
+	echo "MKDIR $@"
 	mkdir -p $@
 
 $(OBJ_D)/%.o: $(SRC_D)/%.c
+	echo "CC $@"
 	$(CC) -o $@ -c $(INC) $<
 
 #$(OBJ_D)/%.o: $(SRC_D)/%.cpp
+#	echo "CXX $@"
 #	$(CXX) -o $@ -c -I $(INC_D) $<
 
 #-------------------------------------------------------------------------------
