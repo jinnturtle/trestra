@@ -14,8 +14,8 @@
 //3rd party
 #include "sqlite3.h"
 
-#define PROGRAM_NAME "trestra - time resource tracker"
-#define PROGRAM_VERSION "v0.0.1"
+#define PROGRAM_NAME "trestra - Time RESource TRAcker"
+#define PROGRAM_VERSION "v0.2.1"
 
 #define DB_PATH "dat/db.db"
 
@@ -28,17 +28,18 @@ int create_task();
 int compile_sql(sqlite3 *_db, const char *_txt, int _n, unsigned _flags,
         sqlite3_stmt **_stmt, const char **_tail);
 int open_db(const char *_path, sqlite3 **_db);
+int remove_task();
 int init_nc(void);
 
 /*TODO
  * * [x] print time format "XXXXXhXXm"
  * * [x] creating tasks
- * * [ ] removing(moving to dustbin) tasks
+ * * [x] removing(moving to dustbin) tasks
+ * * [ ] modifying tasks
  * * [ ] nesting tasks (subtasks) via assigning a parent id
  * ** [ ] e.g. show_task menu option to display children
  * ** [ ] indicate tasks that have children when printing
  * ** [ ] add children fact and estimate times to parent when creating/modifying children
- * * [ ] modifying tasks
  */
 
 int main(void)
@@ -61,6 +62,7 @@ void main_menu(void)
         printw("p - print tasks\n");
         printw("a - activate task\n");
         printw("n - create a new task\n");
+        printw("d - delete task\n");
         printw("q - quit\n");
 
         cmd = getch();
@@ -68,10 +70,41 @@ void main_menu(void)
         case 'p': print_tasks(); break;
         case 'a': activate_task(); break;
         case 'n': create_task(); break;
+        case 'd': remove_task(); break;
         case 'q': continue;
         default: mvprintw(22,0, "invalid selection (%c)", cmd); break;
         }
     }
+}
+
+int nc_inp(int _y, int _x, const char *_prompt, char *str_, unsigned _n)
+{
+    if(str_ == NULL) { return -1; }
+
+    int pos = 0;
+
+    int cmd = 0;
+    while(cmd != '\n') {
+        move(_y, _x);
+        if(_prompt != NULL) { printw("%s", _prompt); }
+
+        printw("%s", str_);
+        cmd = getch();
+
+        if(strlen(str_) >= _n - 1) {
+            mvprintw(_y + 1, _x, "max input length reached!");
+            continue;
+        }
+
+        switch(cmd) {
+        case '\n': break;
+        default:
+            str_[pos] = cmd;
+            ++pos;
+        }
+    }
+
+    return 0;
 }
 
 int print_tasks(void)
@@ -162,9 +195,11 @@ int find_task(int _id, struct Task *task_)
 
 int activate_task(void)
 {
+    clear();
+
     struct Task task = { 0 };
     char strbuf[10] = { 0 };
-    nc_inp(10, 10, "task id: ", strbuf, sizeof strbuf);
+    nc_inp(0, 0, "task id: ", strbuf, sizeof strbuf);
 
     find_task(atoi(strbuf), &task);
     if(task.id == 0) {
@@ -187,12 +222,24 @@ int activate_task(void)
     while(cmd != 'q') {
         elapsed = time(NULL) - s_tm;
         time_t total = task.fact + elapsed;
+        int remaining = task.estimate - total;
+
         mvprintw(20,0, "session: %ldh%ldm%lds\n",
                 elapsed / 3600, (elapsed % 3600) / 60, elapsed % 60);
+
         printw("total: %ldh%ldm%lds / %ldh%ldm%lds\n",
                 total / 3600, (total % 3600) / 60, total % 60,
                 task.estimate / 3600, (task.estimate % 3600) / 60,
                 task.estimate % 60);
+
+        char sign[] = {0, 0};
+        if(remaining < 0) {
+            remaining = -remaining;
+            sign[0] = '-';
+        }
+        printw("remaining: %s%dh%dm%ds\n",
+                sign,
+                remaining / 3600, (remaining % 3600) / 60, remaining % 60);
 
         cmd = getch();
     }
@@ -200,36 +247,6 @@ int activate_task(void)
 
     task.fact += elapsed; //add elapsed time
     update_task(&task);
-
-    return 0;
-}
-
-int nc_inp(int _y, int _x, const char *_prompt, char *str_, unsigned _n)
-{
-    if(str_ == NULL) { return -1; }
-
-    int pos = 0;
-
-    int cmd = 0;
-    while(cmd != '\n') {
-        move(_y, _x);
-        if(_prompt != NULL) { printw("%s", _prompt); }
-
-        printw("%s", str_);
-        cmd = getch();
-
-        if(strlen(str_) >= _n - 1) {
-            mvprintw(_y + 1, _x, "max input length reached!");
-            continue;
-        }
-
-        switch(cmd) {
-        case '\n': break;
-        default:
-            str_[pos] = cmd;
-            ++pos;
-        }
-    }
 
     return 0;
 }
@@ -300,19 +317,22 @@ int create_task()
     time_t creation_time = time(NULL);
     char strbuf[100] = { 0 };
 
+    clear();
+    mvprintw(0,0, "*** create task ***");
+
     struct Task task = { 0 };
     task.creation_time = creation_time;
     task.status_time = creation_time;
-    nc_inp(5, 0, "task name: ", &task.name[0], sizeof task.name);
-    nc_inp(6, 0, "parent id (0 for none): ", &strbuf[0], sizeof strbuf);
+    nc_inp(1, 0, "task name: ", &task.name[0], sizeof task.name);
+    nc_inp(2, 0, "parent id (0 for none): ", &strbuf[0], sizeof strbuf);
     task.parent_id = atoi(strbuf);
     memset(&strbuf, '\0', sizeof strbuf); //clearing the buffer for next use
-    nc_inp(7, 0, "time estimate (minutes): ", &strbuf[0], sizeof strbuf);
+    nc_inp(3, 0, "time estimate (minutes): ", &strbuf[0], sizeof strbuf);
     task.orig_estimate = atoi(strbuf) * 60;
     task.estimate = task.orig_estimate;
     memset(&strbuf, '\0', sizeof strbuf); //clearing the buffer for next use
-    nc_inp(8, 0, "time already spent (minutes): ", &strbuf[0], sizeof strbuf);
-    task.fact = atoi(strbuf);
+    nc_inp(4, 0, "time already spent (minutes): ", &strbuf[0], sizeof strbuf);
+    task.fact = atoi(strbuf) * 60;
     task.status = 0; //TODO LATER statuses are not implemented yet
 
     sqlite3 *db;
@@ -347,6 +367,73 @@ int create_task()
         return -1;
     };
 
+    return 0;
+}
+
+int remove_task()
+{
+    unsigned id = 0;
+    char strbuf[10] = { 0 };
+
+    clear();
+    mvprintw(0,0, "*** delete task ***");
+
+    nc_inp(1,0, "task id (0 for none): ", strbuf, sizeof strbuf);
+    id = atoi(strbuf);
+
+    struct Task task;
+    find_task(id, &task);
+    if(task.id == 0) { 
+        clear();
+        mvprintw(0,0, "could not find task id %u", id);
+        getch();
+        return -1;
+    }
+
+    sqlite3 *db;
+    if(open_db(DB_PATH, &db) != 0) { return -1; }
+
+    char sql_txt[] = "insert into deleted_tasks "
+                     "select * from tasks where id = ?";
+
+    sqlite3_stmt *stmt_cp;
+    if(compile_sql(db, sql_txt, strlen(sql_txt), 0, &stmt_cp, NULL) != 0) {
+        return -1;
+    }
+
+    strcpy(sql_txt, "delete from tasks where id = ?");
+
+    sqlite3_stmt *stmt_del;
+    if(compile_sql(db, sql_txt, strlen(sql_txt), 0, &stmt_del, NULL) != 0) {
+        return -1;
+    }
+
+    sqlite3_bind_int(stmt_cp, 1, id);
+    sqlite3_bind_int(stmt_del, 1, id);
+
+    if(sqlite3_step(stmt_cp) != SQLITE_DONE) {
+        mvprintw(0,0, "could not copy task to deleted_tasks\n");
+        printw("error: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt_cp);
+        sqlite3_finalize(stmt_del);
+        sqlite3_close(db);
+        getch();
+        return -1;
+    }
+
+    sqlite3_finalize(stmt_cp);
+
+    if(sqlite3_step(stmt_del) != SQLITE_DONE) {
+        mvprintw(0,0, "could not delete task from tasks table\n");
+        printw("error: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt_del);
+        sqlite3_close(db);
+        getch();
+        return -1;
+    }
+
+    sqlite3_finalize(stmt_del);
+    sqlite3_close(db);
     return 0;
 }
 
