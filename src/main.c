@@ -15,31 +15,34 @@
 #include "sqlite3.h"
 
 #define PROGRAM_NAME "trestra - Time RESource TRAcker"
-#define PROGRAM_VERSION "v0.2.1"
+#define PROGRAM_VERSION "v0.3.0"
 
 #define DB_PATH "dat/db.db"
 
-int print_tasks(void);
-int activate_task(void);
 void main_menu(void);
 int nc_inp(int _y, int _x, const char *_prompt, char *str_, unsigned _n);
+int open_db(const char *_path, sqlite3 **_db);
+int print_tasks(void);
+int find_task(int _id, struct Task *task_);
+int activate_task(void);
 int update_task(struct Task *_task);
 int create_task();
+int remove_task();
+int modify_task();
 int compile_sql(sqlite3 *_db, const char *_txt, int _n, unsigned _flags,
         sqlite3_stmt **_stmt, const char **_tail);
-int open_db(const char *_path, sqlite3 **_db);
-int remove_task();
 int init_nc(void);
 
 /*TODO
  * * [x] print time format "XXXXXhXXm"
  * * [x] creating tasks
  * * [x] removing(moving to dustbin) tasks
- * * [ ] modifying tasks
+ * * [x] modifying tasks
  * * [ ] nesting tasks (subtasks) via assigning a parent id
  * ** [ ] e.g. show_task menu option to display children
  * ** [ ] indicate tasks that have children when printing
  * ** [ ] add children fact and estimate times to parent when creating/modifying children
+ * * [ ] statuses (print at print and modify; lookup table)
  */
 
 int main(void)
@@ -61,6 +64,7 @@ void main_menu(void)
         mvprintw(0,0, "*** %s %s ***\n", PROGRAM_NAME, PROGRAM_VERSION);
         printw("p - print tasks\n");
         printw("a - activate task\n");
+        printw("m - modify task\n");
         printw("n - create a new task\n");
         printw("d - delete task\n");
         printw("q - quit\n");
@@ -69,6 +73,7 @@ void main_menu(void)
         switch(cmd) {
         case 'p': print_tasks(); break;
         case 'a': activate_task(); break;
+        case 'm': modify_task(); break;
         case 'n': create_task(); break;
         case 'd': remove_task(); break;
         case 'q': continue;
@@ -82,6 +87,7 @@ int nc_inp(int _y, int _x, const char *_prompt, char *str_, unsigned _n)
     if(str_ == NULL) { return -1; }
 
     int pos = 0;
+    bool clear_ln = true;
 
     int cmd = 0;
     while(cmd != '\n') {
@@ -89,6 +95,7 @@ int nc_inp(int _y, int _x, const char *_prompt, char *str_, unsigned _n)
         if(_prompt != NULL) { printw("%s", _prompt); }
 
         printw("%s", str_);
+
         cmd = getch();
 
         if(strlen(str_) >= _n - 1) {
@@ -97,11 +104,29 @@ int nc_inp(int _y, int _x, const char *_prompt, char *str_, unsigned _n)
         }
 
         switch(cmd) {
-        case '\n': break;
+        case '\n': continue;
         default:
             str_[pos] = cmd;
             ++pos;
         }
+
+        if(clear_ln) {
+            move(_y, _x + strlen(_prompt));
+            for(unsigned i = 0; i < _n; ++i) { printw(" "); }
+            clear_ln = false;
+        }
+    }
+
+    return 0;
+}
+
+int open_db(const char *_path, sqlite3 **_db)
+{
+    if(sqlite3_open(_path, _db) != SQLITE_OK) {
+        mvprintw(0,0, "Error opening database: %s\n", sqlite3_errmsg(*_db));
+        getch();
+        sqlite3_close(*_db);
+        return 1;
     }
 
     return 0;
@@ -162,8 +187,10 @@ int find_task(int _id, struct Task *task_)
 
     if(open_db(DB_PATH, &db) != 0) { return -1; };
 
-    char sql_txt[] = "select id, name, time_estimated, time_spent "
-                     "from tasks where id = ? limit 1";
+    char sql_txt[] = "SELECT id, parent_id, name, created_time, status_time, "
+                     "original_time_estimate, time_estimated, time_spent, "
+                     "status "
+                     "FROM tasks WHERE id = ? LIMIT 1";
     sqlite3_stmt *stmt;
 
     if(compile_sql(db, sql_txt, strlen(sql_txt), 0, &stmt, NULL) != 0) {
@@ -175,9 +202,14 @@ int find_task(int _id, struct Task *task_)
     int rc = 0;
     while((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
         task_->id = sqlite3_column_int(stmt, 0);
-        strcpy(task_->name, sqlite3_column_text(stmt, 1));
-        task_->estimate = sqlite3_column_int(stmt, 2);
-        task_->fact = sqlite3_column_int(stmt, 3);
+        task_->parent_id = sqlite3_column_int(stmt, 1);
+        strcpy(task_->name, sqlite3_column_text(stmt, 2));
+        task_->creation_time = sqlite3_column_int(stmt, 3);
+        task_->status_time = sqlite3_column_int(stmt, 4);
+        task_->orig_estimate = sqlite3_column_int(stmt, 5);
+        task_->estimate = sqlite3_column_int(stmt, 6);
+        task_->fact = sqlite3_column_int(stmt, 7);
+        task_->status = sqlite3_column_int(stmt, 8);
     }
     if(rc != SQLITE_DONE) {
         mvprintw(0,0, "error querying the db: %s\n", sqlite3_errmsg(db));
@@ -190,6 +222,14 @@ int find_task(int _id, struct Task *task_)
 
     sqlite3_finalize(stmt);
     sqlite3_close(db);
+
+    if(task_->id == 0) {
+        clear();
+        mvprintw(0,0, "could not find task! (press any key)");
+        getch();
+        return -1;
+    }
+
     return 0;
 }
 
@@ -198,10 +238,12 @@ int activate_task(void)
     clear();
 
     struct Task task = { 0 };
+
     char strbuf[10] = { 0 };
     nc_inp(0, 0, "task id: ", strbuf, sizeof strbuf);
 
     find_task(atoi(strbuf), &task);
+    //TODO below should be handled within find_task()
     if(task.id == 0) {
         clear();
         mvprintw(0,0, "could not find task! (press any key)");
@@ -259,17 +301,32 @@ int update_task(struct Task *_task)
 
     if(open_db(DB_PATH, &db) != 0) { return -1; };
 
-    char sql_txt[] = "update tasks "
-                     "set time_spent = ? "
-                     "where id = ?";
+    char sql_txt[] = "UPDATE tasks "
+                     "SET "
+                         "parent_id = ?1, "
+                         "name = ?2, "
+                         "created_time = ?3, "
+                         "status_time = ?4, "
+                         "original_time_estimate = ?5, "
+                         "time_estimated = ?6, "
+                         "time_spent = ?7, "
+                         "status = ?8 "
+                     "WHERE id = ?9";
     sqlite3_stmt *stmt;
 
     if(compile_sql(db, sql_txt, strlen(sql_txt), 0, &stmt, NULL) != 0) {
         return -1;
     }
 
-    sqlite3_bind_int(stmt, 1, _task->fact);
-    sqlite3_bind_int(stmt, 2, _task->id);
+    sqlite3_bind_int(stmt, 1, _task->parent_id);
+    sqlite3_bind_text(stmt, 2, _task->name, -1, NULL);
+    sqlite3_bind_int(stmt, 3, _task->creation_time);
+    sqlite3_bind_int(stmt, 4, _task->status_time);
+    sqlite3_bind_int(stmt, 5, _task->orig_estimate);
+    sqlite3_bind_int(stmt, 6, _task->estimate);
+    sqlite3_bind_int(stmt, 7, _task->fact);
+    sqlite3_bind_int(stmt, 8, _task->status);
+    sqlite3_bind_int(stmt, 9, _task->id);
 
     if(sqlite3_step(stmt) != SQLITE_DONE) {
         mvprintw(0,0, "error updating db: %s\n", sqlite3_errmsg(db));
@@ -284,6 +341,153 @@ int update_task(struct Task *_task)
     return 0;
 }
 
+int remove_task()
+{
+    unsigned id = 0;
+    char strbuf[10] = { 0 };
+
+    clear();
+    mvprintw(0,0, "*** delete task ***");
+
+    nc_inp(1,0, "task id (0 for none): ", strbuf, sizeof strbuf);
+    id = atoi(strbuf);
+
+    struct Task task;
+    find_task(id, &task);
+    //TODO below should be handled within find_task()
+    if(task.id == 0) { 
+        clear();
+        mvprintw(0,0, "could not find task id %u", id);
+        getch();
+        return -1;
+    }
+
+    sqlite3 *db;
+    if(open_db(DB_PATH, &db) != 0) { return -1; }
+
+    char sql_txt[] = "insert into deleted_tasks "
+                     "select * from tasks where id = ?";
+
+    sqlite3_stmt *stmt_cp;
+    if(compile_sql(db, sql_txt, strlen(sql_txt), 0, &stmt_cp, NULL) != 0) {
+        return -1;
+    }
+
+    strcpy(sql_txt, "delete from tasks where id = ?");
+
+    sqlite3_stmt *stmt_del;
+    if(compile_sql(db, sql_txt, strlen(sql_txt), 0, &stmt_del, NULL) != 0) {
+        return -1;
+    }
+
+    sqlite3_bind_int(stmt_cp, 1, id);
+    sqlite3_bind_int(stmt_del, 1, id);
+
+    if(sqlite3_step(stmt_cp) != SQLITE_DONE) {
+        mvprintw(0,0, "could not copy task to deleted_tasks\n");
+        printw("error: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt_cp);
+        sqlite3_finalize(stmt_del);
+        sqlite3_close(db);
+        getch();
+        return -1;
+    }
+
+    sqlite3_finalize(stmt_cp);
+
+    if(sqlite3_step(stmt_del) != SQLITE_DONE) {
+        mvprintw(0,0, "could not delete task from tasks table\n");
+        printw("error: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt_del);
+        sqlite3_close(db);
+        getch();
+        return -1;
+    }
+
+    sqlite3_finalize(stmt_del);
+    sqlite3_close(db);
+    return 0;
+}
+
+int modify_task()
+{
+    clear();
+    mvprintw(0,0, "*** modify task ***");
+
+    struct Task task = { 0 };
+
+    char strbuf[100] = { 0 };
+    nc_inp(1, 0, "task id: ", strbuf, sizeof strbuf);
+
+    if(find_task(atoi(strbuf), &task) < 0) { return -1; }
+
+    char prompt[20] = "parent id: ";
+    mvprintw(2,0, "%s[%d]", prompt, task.parent_id); //printing original value
+    memset(&strbuf, '\0', sizeof strbuf); //clearing the buffer for next use
+    nc_inp(2,0, prompt, strbuf, sizeof strbuf); //new value input
+    task.parent_id = atoi(strbuf);
+
+    strcpy(prompt, "name: ");
+    mvprintw(3,0, "%s[%s]", prompt, task.name); //printing original value
+    memset(&strbuf, '\0', sizeof strbuf); //clearing the buffer for next use
+    nc_inp(3,0, prompt, strbuf, sizeof strbuf); //new value input
+    strcpy(task.name, strbuf);
+
+    strcpy(prompt, "original estimate: ");
+    mvprintw(4,0, "%s[%um]", prompt, task.orig_estimate / 60); //printing original value
+    memset(&strbuf, '\0', sizeof strbuf); //clearing the buffer for next use
+    nc_inp(4,0, prompt, strbuf, sizeof strbuf); //new value input
+    task.orig_estimate = atoi(strbuf) * 60;
+
+    strcpy(prompt, "estimate: ");
+    mvprintw(5,0, "%s[%um]", prompt, task.estimate / 60); //printing original value
+    memset(&strbuf, '\0', sizeof strbuf); //clearing the buffer for next use
+    nc_inp(5,0, prompt, strbuf, sizeof strbuf); //new value input
+    task.estimate = atoi(strbuf) * 60;
+
+    strcpy(prompt, "time spent: ");
+    mvprintw(6,0, "%s[%um]", prompt, task.fact / 60); //printing original value
+    memset(&strbuf, '\0', sizeof strbuf); //clearing the buffer for next use
+    nc_inp(6,0, prompt, strbuf, sizeof strbuf); //new value input
+    task.fact = atoi(strbuf) * 60;
+
+    strcpy(prompt, "status: ");
+    mvprintw(7,0, "%s[%d]", prompt, task.status); //printing original value
+    memset(&strbuf, '\0', sizeof strbuf); //clearing the buffer for next use
+    nc_inp(7,0, prompt, strbuf, sizeof strbuf); //new value input
+    int old_status = task.status;
+    task.status = atoi(strbuf);
+
+    strcpy(prompt, "submit(y/n)?: ");
+    memset(&strbuf, '\0', sizeof strbuf); //clearing the buffer for next use
+    strcpy(strbuf, "n"); //writing default value
+    nc_inp(9,0, prompt, strbuf, sizeof strbuf);
+
+    bool commit = false;
+    char msg[40] = { 0 };
+    if(strbuf[0] == 'y') {
+        commit = true;
+        strcpy(msg, "commiting...");
+    }
+    else { strcpy(msg, "discarding..."); }
+    mvprintw(10,0, "%s", msg);
+
+    if(commit == true) {
+        if(task.status != old_status) { task.status_time = time(NULL); }
+
+        if(update_task(&task) != 0) {
+            mvprintw(11,0, " FAILURE!");
+            getch();
+            return -1;
+        }
+    }
+
+    printw(" done. (press any key)");
+    getch();
+
+    return 0;
+}
+
 int compile_sql(sqlite3 *_db, const char *_txt, int _n, unsigned _flags,
         sqlite3_stmt **_stmt, const char **_tail)
 {
@@ -294,18 +498,6 @@ int compile_sql(sqlite3 *_db, const char *_txt, int _n, unsigned _flags,
         sqlite3_finalize(*_stmt);
         sqlite3_close(_db);
         return -1;
-    }
-
-    return 0;
-}
-
-int open_db(const char *_path, sqlite3 **_db)
-{
-    if(sqlite3_open(_path, _db) != SQLITE_OK) {
-        mvprintw(0,0, "Error opening database: %s\n", sqlite3_errmsg(*_db));
-        getch();
-        sqlite3_close(*_db);
-        return 1;
     }
 
     return 0;
@@ -367,73 +559,6 @@ int create_task()
         return -1;
     };
 
-    return 0;
-}
-
-int remove_task()
-{
-    unsigned id = 0;
-    char strbuf[10] = { 0 };
-
-    clear();
-    mvprintw(0,0, "*** delete task ***");
-
-    nc_inp(1,0, "task id (0 for none): ", strbuf, sizeof strbuf);
-    id = atoi(strbuf);
-
-    struct Task task;
-    find_task(id, &task);
-    if(task.id == 0) { 
-        clear();
-        mvprintw(0,0, "could not find task id %u", id);
-        getch();
-        return -1;
-    }
-
-    sqlite3 *db;
-    if(open_db(DB_PATH, &db) != 0) { return -1; }
-
-    char sql_txt[] = "insert into deleted_tasks "
-                     "select * from tasks where id = ?";
-
-    sqlite3_stmt *stmt_cp;
-    if(compile_sql(db, sql_txt, strlen(sql_txt), 0, &stmt_cp, NULL) != 0) {
-        return -1;
-    }
-
-    strcpy(sql_txt, "delete from tasks where id = ?");
-
-    sqlite3_stmt *stmt_del;
-    if(compile_sql(db, sql_txt, strlen(sql_txt), 0, &stmt_del, NULL) != 0) {
-        return -1;
-    }
-
-    sqlite3_bind_int(stmt_cp, 1, id);
-    sqlite3_bind_int(stmt_del, 1, id);
-
-    if(sqlite3_step(stmt_cp) != SQLITE_DONE) {
-        mvprintw(0,0, "could not copy task to deleted_tasks\n");
-        printw("error: %s\n", sqlite3_errmsg(db));
-        sqlite3_finalize(stmt_cp);
-        sqlite3_finalize(stmt_del);
-        sqlite3_close(db);
-        getch();
-        return -1;
-    }
-
-    sqlite3_finalize(stmt_cp);
-
-    if(sqlite3_step(stmt_del) != SQLITE_DONE) {
-        mvprintw(0,0, "could not delete task from tasks table\n");
-        printw("error: %s\n", sqlite3_errmsg(db));
-        sqlite3_finalize(stmt_del);
-        sqlite3_close(db);
-        getch();
-        return -1;
-    }
-
-    sqlite3_finalize(stmt_del);
-    sqlite3_close(db);
     return 0;
 }
 
