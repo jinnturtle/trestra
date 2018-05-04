@@ -26,6 +26,6 @@ struct Task {
 };
 
 int print_from_stmt_short(sqlite3_stmt *_stmt, sqlite3* _db);
-void print_task(struct Task *_task);
+void print_task(char *_fmt, struct Task *_task);
 
 #endif //define TASK_H

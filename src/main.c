@@ -16,9 +16,15 @@
 #include "sqlite3.h"
 
 #define PROGRAM_NAME "trestra - Time RESource TRAcker"
-#define PROGRAM_VERSION "v0.5.0"
+#define PROGRAM_VERSION "v0.9.9"
 
-#define DB_PATH "dat/db.db"
+#ifdef DEBUG
+#  define DB_PATH "dat/db.db"
+#else
+//TODO adaptive path to $HOME/.trestra/db.db
+#  define DB_PATH ".trestra/db.db"
+#endif
+
 #define MAX_ID_LEN 9
 #define ROOT_TASK_ID 0
 
@@ -43,6 +49,7 @@ int modify_task();
 int init_nc(void);
 
 /*TODO
+ * v1.0.0
  * * [x] print time format "XXXXXhXXm"
  * * [x] creating tasks
  * * [x] removing(moving to dustbin) tasks
@@ -55,14 +62,25 @@ int init_nc(void);
  * ** [x] indicate tasks that have children when printing
  * ** [x] update fact and estimate times of parent when creating/modifying children
  * ** [x] delete children when deleting parent
- * * [ ] make the default database path configurable
- * * [ ] make it possible to add hours, minutes, workdays, etc (e.g. +3h30m; 1d4h15m)
+ * * [x] make it possible to add hours, minutes, workdays, etc (e.g. +3h30m; 1d4h15m)
  * * [ ] display more tasks/lines than fit on screen (scroll, paging, etc)
+ * v1+
+ * * [ ] make the default database path configurable
  * * [ ] ?statuses (show on info and modify screens; lookup table in DB)
+ * * [ ] add notes to tasks and store in database (probs separate table)
+ * * [ ] "advanded" menu to see/clear deleted tasks, hanging notes, etc
  */
 
 int main(void)
 {
+#ifndef DEBUG
+    char *home = getenv("HOME");
+    if(chdir(home) != 0) {
+        printf("could not change dir to %s\n", home);
+        return -1;
+    }
+#endif
+
     init_nc();
 
     main_menu();
@@ -113,35 +131,43 @@ int nc_inp(int _y, int _x, const char *_prompt, char *str_, unsigned _n)
 
     int pos = 0;
     bool clear_ln = true;
+    bool preview = (str_[0] == '\0')? false : true;
 
     int cmd = 0;
     while(cmd != '\n') {
         move(_y, _x);
         if(_prompt != NULL) { printw("%s", _prompt); }
 
-        printw("%s", str_);
+        if(preview) {
+            printw("[%s]", str_);
+            preview = false;
+        }
+        else { printw("%s", str_); }
 
         cmd = getch();
 
         switch(cmd) {
         case '\n': continue;
         case BCK_CODE:
-            str_[pos] = ' ';
+            str_[pos] = '\0';
             if(pos > 0) {
                 --pos;
-                str_[pos] = ' ';
+                str_[pos] = '\0';
             }
+
+            clear_ln = true;
             break;
         default:
             if(pos < _n) { str_[pos] = cmd; }
+            str_[pos + 1] = '\0';//making sure the string ends right after caret
 
             if(pos < _n - 1) { ++pos; }
-            else { continue; }
         }
 
         if(clear_ln) {
             move(_y, _x + strlen(_prompt));
-            for(unsigned i = 0; i < _n; ++i) { printw(" "); }
+            // _n + 2 to account for the preview brackets
+            for(unsigned i = 0; i < _n + 2; ++i) { printw(" "); }
             clear_ln = false;
         }
     }
@@ -256,7 +282,7 @@ int list_children()
     if(find_task(atoi(strbuf), &task) < 0) { return -1; }
 
     mvprintw(1, 0, "parent: ");
-    print_task(&task);
+    print_task("hm", &task);
     printw("\n");
 
     char sep[81];
@@ -315,12 +341,15 @@ int activate_task(void)
 
     if(find_task(atoi(strbuf), &task) != 0) { return -1; }
 
-    mvprintw(1, 0, "task: \"%s\" [%s/%s]",
-            task.name,
-            format_time_str("hms", task.estimate, est_buf),
-            format_time_str("hms", task.fact, elp_buf));
-    memset(est_buf, '\0', sizeof est_buf);
-    memset(elp_buf, '\0', sizeof elp_buf);
+    //mvprintw(1, 0, "task: \"%s\" [%s/%s]",
+    //        task.name,
+    //        format_time_str("hms", task.estimate, est_buf),
+    //        format_time_str("hms", task.fact, elp_buf));
+    //memset(est_buf, '\0', sizeof est_buf);
+    //memset(elp_buf, '\0', sizeof elp_buf);
+
+    mvprintw(1, 0, "task: ");
+    print_task("hms", &task);
 
     memset(strbuf, '\0', sizeof strbuf);
     strbuf[0] = 'n';
@@ -608,67 +637,78 @@ int modify_task()
     mvprintw(0,0, "*** modify task ***");
 
     struct Task task = { 0 };
+    char strbuf2[100] = { 0 };
 
     char strbuf[100] = { 0 };
     nc_inp(1, 0, "task id: ", strbuf, MAX_ID_LEN);
 
     if(find_task(atoi(strbuf), &task) < 0) { return -1; }
 
-    printw(" \"%s\"", task.name);
+    move(1, 0);
+    print_task("hms", &task);
+    //printw(" \"%s\"", task.name);
 
     char prompt[40] = "parent id: ";
-    mvprintw(2,0, "%s[%d]", prompt, task.parent_id); //printing original value
-    memset(&strbuf, '\0', sizeof strbuf); //clearing the buffer for next use
-    nc_inp(2,0, prompt, strbuf, sizeof strbuf - 1); //new value input
+    snprintf(strbuf, MAX_ID_LEN, "%u", task.parent_id); //filling default value
+    nc_inp(2,0, prompt, strbuf, MAX_ID_LEN); //new value input
     if(strbuf[0]) { task.parent_id = atoi(strbuf); }
 
     strcpy(prompt, "name: ");
-    mvprintw(3,0, "%s[%s]", prompt, task.name); //printing original value
-    memset(&strbuf, '\0', sizeof strbuf); //clearing the buffer for next use
+    snprintf(strbuf, sizeof strbuf, "%s", task.name);
     nc_inp(3,0, prompt, strbuf, sizeof strbuf - 1); //new value input
     if(strbuf[0]) { strcpy(task.name, strbuf); }
 
-    strcpy(prompt, "original estimate (minutes): ");
-    mvprintw(4,0, "%s[%u]", prompt, task.orig_estimate / 60); //printing original value
-    memset(&strbuf, '\0', sizeof strbuf); //clearing the buffer for next use
+    strcpy(prompt, "original estimate: ");
+    snprintf(strbuf, sizeof strbuf, "%s", //filling default value
+            time_to_htime(task.orig_estimate, strbuf2, sizeof strbuf2));
     nc_inp(4,0, prompt, strbuf, sizeof strbuf - 1); //new value input
     if(strbuf[0]) { 
-        if(strbuf[0] == '+') { task.orig_estimate += atoi(&strbuf[1]) * 60; }
-        else if(strbuf[0] == '-') {task.orig_estimate -= atoi(&strbuf[1]) * 60;}
-        else { task.orig_estimate = atoi(strbuf) * 60; }
+        if(strbuf[0] == '+') {
+            task.orig_estimate += htime_to_time(&strbuf[1], sizeof strbuf - 1);
+        }
+        else if(strbuf[0] == '-') {
+           task.orig_estimate -= htime_to_time(&strbuf[1], sizeof strbuf - 1);
+        }
+        else { task.orig_estimate = htime_to_time(strbuf, sizeof strbuf); }
     }
 
-    strcpy(prompt, "estimate (minutes): ");
-    mvprintw(5,0, "%s[%u]", prompt, task.estimate / 60); //printing original value
-    memset(&strbuf, '\0', sizeof strbuf); //clearing the buffer for next use
+    strcpy(prompt, "estimate: ");
+    snprintf(strbuf, sizeof strbuf, "%s", //filling default value
+            time_to_htime(task.estimate, strbuf2, sizeof strbuf2));
     nc_inp(5,0, prompt, strbuf, sizeof strbuf - 1); //new value input
     if(strbuf[0]) { 
-        if(strbuf[0] == '+') { task.estimate += atoi(&strbuf[1]) * 60; }
-        else if(strbuf[0] == '-') { task.estimate -= atoi(&strbuf[1]) * 60; }
-        else { task.estimate = atoi(strbuf) * 60; }
+        if(strbuf[0] == '+') {
+            task.estimate += htime_to_time(&strbuf[1], sizeof strbuf - 1);
+        }
+        else if(strbuf[0] == '-') {
+           task.estimate -= htime_to_time(&strbuf[1], sizeof strbuf - 1);
+        }
+        else { task.estimate = htime_to_time(strbuf, sizeof strbuf); }
     }
 
-    strcpy(prompt, "time spent (minutes): ");
-    mvprintw(6,0, "%s[%u]", prompt, task.fact / 60); //printing original value
-    memset(&strbuf, '\0', sizeof strbuf); //clearing the buffer for next use
+    strcpy(prompt, "time spent: ");
+    snprintf(strbuf, sizeof strbuf, "%s", //filling default value
+            time_to_htime(task.fact, strbuf2, sizeof strbuf2));
     nc_inp(6,0, prompt, strbuf, sizeof strbuf - 1); //new value input
     if(strbuf[0]) { 
-        if(strbuf[0] == '+') { task.fact += atoi(&strbuf[1]) * 60; }
-        else if(strbuf[0] == '-') { task.fact -= atoi(&strbuf[1]) * 60; }
-        else { task.fact = atoi(strbuf) * 60; }
+        if(strbuf[0] == '+') {
+            task.fact += htime_to_time(&strbuf[1], sizeof strbuf - 1);
+        }
+        else if(strbuf[0] == '-') {
+           task.fact -= htime_to_time(&strbuf[1], sizeof strbuf - 1);
+        }
+        else { task.fact = htime_to_time(strbuf, sizeof strbuf); }
     }
 
     strcpy(prompt, "status: ");
-    mvprintw(7,0, "%s[%d]", prompt, task.status); //printing original value
-    memset(&strbuf, '\0', sizeof strbuf); //clearing the buffer for next use
+    snprintf(strbuf, sizeof strbuf, "%d", task.status);//filling default value
     nc_inp(7,0, prompt, strbuf, sizeof strbuf - 1); //new value input
     int old_status = task.status;
     if(strbuf[0]) { task.status = atoi(strbuf); }
 
     strcpy(prompt, "submit(y/n)?: ");
-    memset(&strbuf, '\0', sizeof strbuf); //clearing the buffer for next use
     strcpy(strbuf, "n"); //writing default value
-    nc_inp(9,0, prompt, strbuf, sizeof strbuf - 1);
+    nc_inp(9,0, prompt, strbuf, 1);
 
     bool commit = false;
     char msg[40] = { 0 };
@@ -694,23 +734,28 @@ int modify_task()
 int create_task()
 {
     char strbuf[100] = { 0 };
+    char default_est[] = "8h";
+    char default_fact[] = "0";
+    char default_parent_id[] = "0";
 
     clear();
     mvprintw(0,0, "*** create task ***");
 
     struct Task task = { 0 };
     nc_inp(1, 0, "task name: ", &task.name[0], sizeof task.name - 1);
+    strcpy(strbuf, default_parent_id); //filling default value
     nc_inp(2, 0, "parent id (0 for none): ", &strbuf[0], sizeof strbuf - 1);
     task.parent_id = atoi(strbuf);
-    memset(&strbuf, '\0', sizeof strbuf); //clearing the buffer for next use
-    nc_inp(3, 0, "time estimate (minutes): ", &strbuf[0], sizeof strbuf - 1);
-    task.orig_estimate = atoi(strbuf) * 60;
-    task.estimate = task.orig_estimate;
-    memset(&strbuf, '\0', sizeof strbuf); //clearing the buffer for next use
+    strcpy(strbuf, default_est); //filling default value
+    nc_inp(3, 0, "time estimate: ", &strbuf[0], sizeof strbuf - 1);
+    task.estimate = htime_to_time(strbuf, sizeof strbuf);
+    strcpy(strbuf, default_fact); //filling default value
     nc_inp(4, 0, "time already spent (minutes): ", &strbuf[0], sizeof strbuf-1);
-    task.fact = atoi(strbuf) * 60;
+    task.fact = htime_to_time(strbuf, sizeof strbuf);
+
     task.status = 0; //TODO LATER statuses are not implemented yet
 
+    task.orig_estimate = task.estimate;
     task.creation_time = time(NULL);
     task.status_time = task.creation_time;
 

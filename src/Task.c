@@ -1,18 +1,20 @@
 #include "Task.h" //header for this implementation file
 
-void print_task(struct Task *_task) {
+void print_task(char *_fmt, struct Task *_task)
+{
     char est_buf[20];
     char fact_buf[20];
 
     printw("%u: \"%s\" [%s/%s (%0.2lf%)]",
             _task->id, _task->name,
-            format_time_str("hm", _task->fact, fact_buf),
-            format_time_str("hm", _task->estimate, est_buf),
+            format_time_str(_fmt, _task->fact, fact_buf),
+            format_time_str(_fmt, _task->estimate, est_buf),
             (100.0d / _task->estimate) * _task->fact);
 }
 
 //TODO this should probs go to some other source file
-int print_from_stmt_short(sqlite3_stmt *_stmt, sqlite3* _db) {
+int print_from_stmt_short(sqlite3_stmt *_stmt, sqlite3* _db)
+{
     char name[64] = { 0 };
     char fact_buf[20] = { 0 };
     char est_buf[20] = { 0 };

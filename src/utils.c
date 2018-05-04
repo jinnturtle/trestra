@@ -1,6 +1,7 @@
 #include "utils.h" //header for this implementation file
 
-char *format_time_str(char *_fmt, time_t _time, char *str_) {
+char *format_time_str(char *_fmt, time_t _time, char *str_)
+{
     char fmt[4] = { 0 };
 
     if(_fmt == NULL) { strcpy(fmt, "hms"); }
@@ -14,6 +15,43 @@ char *format_time_str(char *_fmt, time_t _time, char *str_) {
         sprintf(str_, "%luh%lum",
                 _time / 3600, (_time % 3600) / 60);
     }
+
+    return str_;
+}
+
+time_t htime_to_time(char *_str, size_t _n)
+{
+    size_t n = _n - 1;
+    time_t result = 0;
+    time_t final_result = 0;
+
+    for(unsigned i = 0; i < n; ++i) {
+        if(isdigit(_str[i])) {
+            result = (result * 10) + (_str[i] - '0');
+        }
+        else if(isalpha(_str[i])) {
+            switch(_str[i]){
+                case 'D': final_result += result * 3600 * 24; break;
+                case 'd': final_result += result * 3600 * 8; break;
+                case 'h': final_result += result * 3600; break;
+                case 'm': final_result += result * 60; break;
+                case 's': final_result += result; break;
+                default: continue;
+            }
+
+            result = 0;
+        }
+    }
+
+    return final_result;
+}
+
+char *time_to_htime(time_t _time, char* str_, size_t _n)
+{
+    time_t h = _time / 3600;
+    time_t m = (_time % 3600) / 60;
+    time_t s = _time % 60;
+    snprintf(str_, _n, "%luh%lum%lus", h, m, s);
 
     return str_;
 }
@@ -36,7 +74,9 @@ int compile_sql(sqlite3 *_db, const char *_txt, int _n, unsigned _flags,
 int open_db(const char *_path, sqlite3 **_db)
 {
     if(sqlite3_open(_path, _db) != SQLITE_OK) {
-        mvprintw(0,0, "Error opening database: %s\n", sqlite3_errmsg(*_db));
+        mvprintw(0,0, "Error opening database (%s): %s\n",
+                _path,
+                sqlite3_errmsg(*_db));
         getch();
         sqlite3_close(*_db);
         return 1;

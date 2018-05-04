@@ -6,3 +6,4 @@ o/*.o
 
 #executables
 trestra
+trestra_dbg
