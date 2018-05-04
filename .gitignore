@@ -3,6 +3,7 @@
 
 # Compiled Object files
 o/*.o
+o/rel/*.o
 
 #executables
 trestra
