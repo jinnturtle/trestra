@@ -4,6 +4,8 @@
 !_TAG_PROGRAM_NAME	Exuberant Ctags	//
 !_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
 !_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+BCK_CODE	src/main.c	26;"	d	file:
+DB_PATH	src/main.c	21;"	d	file:
 FTS5_TOKENIZE_AUX	lib/sqlite3/sqlite3.h	11123;"	d
 FTS5_TOKENIZE_DOCUMENT	lib/sqlite3/sqlite3.h	11122;"	d
 FTS5_TOKENIZE_PREFIX	lib/sqlite3/sqlite3.h	11121;"	d
@@ -16,10 +18,12 @@ Fts5ExtensionApi	lib/sqlite3/sqlite3.h	/^typedef struct Fts5ExtensionApi Fts5Ext
 Fts5PhraseIter	lib/sqlite3/sqlite3.h	/^struct Fts5PhraseIter {$/;"	s
 Fts5PhraseIter	lib/sqlite3/sqlite3.h	/^typedef struct Fts5PhraseIter Fts5PhraseIter;$/;"	t	typeref:struct:Fts5PhraseIter
 Fts5Tokenizer	lib/sqlite3/sqlite3.h	/^typedef struct Fts5Tokenizer Fts5Tokenizer;$/;"	t	typeref:struct:Fts5Tokenizer
+MAX_ID_LEN	src/main.c	22;"	d	file:
 NOT_WITHIN	lib/sqlite3/sqlite3.h	9000;"	d
 PARTLY_WITHIN	lib/sqlite3/sqlite3.h	9001;"	d
-PROGRAM_NAME	src/main.c	17;"	d	file:
-PROGRAM_VERSION	src/main.c	18;"	d	file:
+PROGRAM_NAME	src/main.c	18;"	d	file:
+PROGRAM_VERSION	src/main.c	19;"	d	file:
+ROOT_TASK_ID	src/main.c	23;"	d	file:
 SQLITE3_H	lib/sqlite3/sqlite3.h	34;"	d
 SQLITE3_TEXT	lib/sqlite3/sqlite3.h	4291;"	d
 SQLITE_ABORT	lib/sqlite3/sqlite3.h	427;"	d
@@ -435,7 +439,9 @@ SQLITE_VERSION_NUMBER	lib/sqlite3/sqlite3.h	93;"	d
 SQLITE_VTAB_CONSTRAINT_SUPPORT	lib/sqlite3/sqlite3.h	8264;"	d
 SQLITE_WARNING	lib/sqlite3/sqlite3.h	451;"	d
 SQLITE_WARNING_AUTOINDEX	lib/sqlite3/sqlite3.h	533;"	d
+TASK_H	inc/Task.h	2;"	d
 Task	inc/Task.h	/^struct Task {$/;"	s
+UTILS_H	inc/utils.h	2;"	d
 _FTS5_H	lib/sqlite3/sqlite3.h	10619;"	d
 _SQLITE3RTREE_H_	lib/sqlite3/sqlite3.h	8908;"	d
 __SQLITESESSION_H_	lib/sqlite3/sqlite3.h	9015;"	d
@@ -451,7 +457,10 @@ anQueue	lib/sqlite3/sqlite3.h	/^  unsigned int *anQueue;            \/* Number o
 apSqlParam	lib/sqlite3/sqlite3.h	/^  sqlite3_value **apSqlParam;       \/* Original SQL values of parameters *\/$/;"	m	struct:sqlite3_rtree_query_info
 argvIndex	lib/sqlite3/sqlite3.h	/^    int argvIndex;           \/* if >0, constraint is part of argv to xFilter *\/$/;"	m	struct:sqlite3_index_info::sqlite3_index_constraint_usage
 b	lib/sqlite3/sqlite3.h	/^  const unsigned char *b;$/;"	m	struct:Fts5PhraseIter
+check_for_children	src/utils.c	/^int check_for_children(sqlite3 *db, int _parent_id)$/;"	f
 colUsed	lib/sqlite3/sqlite3.h	/^  sqlite3_uint64 colUsed;    \/* Input: Mask of columns used by statement *\/$/;"	m	struct:sqlite3_index_info
+compile_sql	src/utils.c	/^int compile_sql(sqlite3 *_db, const char *_txt, int _n, unsigned _flags,$/;"	f
+create_task	src/main.c	/^int create_task()$/;"	f
 creation_time	inc/Task.h	/^    time_t creation_time; \/\/date and time when the task was created$/;"	m	struct:Task
 desc	lib/sqlite3/sqlite3.h	/^     unsigned char desc;       \/* True for DESC.  False for ASC. *\/$/;"	m	struct:sqlite3_index_info::sqlite3_index_orderby
 double	lib/sqlite3/sqlite3.h	286;"	d
@@ -463,11 +472,13 @@ estimatedCost	lib/sqlite3/sqlite3.h	/^  double estimatedCost;           \/* Esti
 estimatedRows	lib/sqlite3/sqlite3.h	/^  sqlite3_int64 estimatedRows;    \/* Estimated number of rows returned *\/$/;"	m	struct:sqlite3_index_info
 fact	inc/Task.h	/^    unsigned fact; \/\/how much time is already spent on the task$/;"	m	struct:Task
 find_task	src/main.c	/^int find_task(int _id, struct Task *task_)$/;"	f
+format_time_str	src/utils.c	/^char *format_time_str(char *_fmt, time_t _time, char *str_) {$/;"	f
 fts5_api	lib/sqlite3/sqlite3.h	/^struct fts5_api {$/;"	s
 fts5_api	lib/sqlite3/sqlite3.h	/^typedef struct fts5_api fts5_api;$/;"	t	typeref:struct:fts5_api
 fts5_extension_function	lib/sqlite3/sqlite3.h	/^typedef void (*fts5_extension_function)($/;"	t
 fts5_tokenizer	lib/sqlite3/sqlite3.h	/^struct fts5_tokenizer {$/;"	s
 fts5_tokenizer	lib/sqlite3/sqlite3.h	/^typedef struct fts5_tokenizer fts5_tokenizer;$/;"	t	typeref:struct:fts5_tokenizer
+get_children_time	src/main.c	/^int get_children_time(sqlite3 *_db, int _parent_id, struct Task *totals_)$/;"	f
 hidden	lib/sqlite3/sqlite3.h	/^  unsigned char hidden[48];$/;"	m	struct:sqlite3_snapshot
 iColumn	lib/sqlite3/sqlite3.h	/^     int iColumn;              \/* Column constrained.  -1 for ROWID *\/$/;"	m	struct:sqlite3_index_info::sqlite3_index_constraint
 iColumn	lib/sqlite3/sqlite3.h	/^     int iColumn;              \/* Column number *\/$/;"	m	struct:sqlite3_index_info::sqlite3_index_orderby
@@ -485,8 +496,10 @@ idxFlags	lib/sqlite3/sqlite3.h	/^  int idxFlags;              \/* Mask of SQLITE
 idxNum	lib/sqlite3/sqlite3.h	/^  int idxNum;                \/* Number used to identify the index *\/$/;"	m	struct:sqlite3_index_info
 idxStr	lib/sqlite3/sqlite3.h	/^  char *idxStr;              \/* String, possibly obtained from sqlite3_malloc *\/$/;"	m	struct:sqlite3_index_info
 init_nc	src/main.c	/^int init_nc(void)$/;"	f
+list_children	src/main.c	/^int list_children()$/;"	f
 main	src/main.c	/^int main(void)$/;"	f
 main_menu	src/main.c	/^void main_menu(void)$/;"	f
+modify_task	src/main.c	/^int modify_task()$/;"	f
 mxLevel	lib/sqlite3/sqlite3.h	/^  int mxLevel;                      \/* The largest iLevel value in the tree *\/$/;"	m	struct:sqlite3_rtree_query_info
 mxPathname	lib/sqlite3/sqlite3.h	/^  int mxPathname;          \/* Maximum file pathname length *\/$/;"	m	struct:sqlite3_vfs
 nConstraint	lib/sqlite3/sqlite3.h	/^  int nConstraint;           \/* Number of entries in aConstraint *\/$/;"	m	struct:sqlite3_index_info
@@ -500,6 +513,7 @@ nc_inp	src/main.c	/^int nc_inp(int _y, int _x, const char *_prompt, char *str_, 
 needToFreeIdxStr	lib/sqlite3/sqlite3.h	/^  int needToFreeIdxStr;      \/* Free idxStr using sqlite3_free() if true *\/$/;"	m	struct:sqlite3_index_info
 omit	lib/sqlite3/sqlite3.h	/^    unsigned char omit;      \/* Do not code a test for this constraint *\/$/;"	m	struct:sqlite3_index_info::sqlite3_index_constraint_usage
 op	lib/sqlite3/sqlite3.h	/^     unsigned char op;         \/* Constraint operator *\/$/;"	m	struct:sqlite3_index_info::sqlite3_index_constraint
+open_db	src/utils.c	/^int open_db(const char *_path, sqlite3 **_db)$/;"	f
 orderByConsumed	lib/sqlite3/sqlite3.h	/^  int orderByConsumed;       \/* True if output is already ordered *\/$/;"	m	struct:sqlite3_index_info
 orig_estimate	inc/Task.h	/^    unsigned orig_estimate; \/\/original minutes estimated to complete the task$/;"	m	struct:Task
 pAppData	lib/sqlite3/sqlite3.h	/^  void *pAppData;                \/* Argument to xInit() and xShutdown() *\/$/;"	m	struct:sqlite3_mem_methods
@@ -517,9 +531,11 @@ pUser	lib/sqlite3/sqlite3.h	/^  void *pUser;                      \/* callback c
 pUser	lib/sqlite3/sqlite3.h	/^  void *pUser;                    \/* Callback implementation user data *\/$/;"	m	struct:sqlite3_rtree_geometry
 pVtab	lib/sqlite3/sqlite3.h	/^  sqlite3_vtab *pVtab;      \/* Virtual table of this cursor *\/$/;"	m	struct:sqlite3_vtab_cursor
 parent_id	inc/Task.h	/^    unsigned parent_id;$/;"	m	struct:Task
+print_from_stmt_short	src/Task.c	/^int print_from_stmt_short(sqlite3_stmt *_stmt, sqlite3* _db) {$/;"	f
 print_tasks	src/main.c	/^int print_tasks(void)$/;"	f
 rParentScore	lib/sqlite3/sqlite3.h	/^  sqlite3_rtree_dbl rParentScore;   \/* Score of parent node *\/$/;"	m	struct:sqlite3_rtree_query_info
 rScore	lib/sqlite3/sqlite3.h	/^  sqlite3_rtree_dbl rScore;         \/* OUT: Write the score here *\/$/;"	m	struct:sqlite3_rtree_query_info
+remove_task	src/main.c	/^int remove_task()$/;"	f
 sqlite3	lib/sqlite3/sqlite3.h	/^typedef struct sqlite3 sqlite3;$/;"	t	typeref:struct:sqlite3
 sqlite3_api_routines	lib/sqlite3/sqlite3.h	/^typedef struct sqlite3_api_routines sqlite3_api_routines;$/;"	t	typeref:struct:sqlite3_api_routines
 sqlite3_backup	lib/sqlite3/sqlite3.h	/^typedef struct sqlite3_backup sqlite3_backup;$/;"	t	typeref:struct:sqlite3_backup
@@ -586,6 +602,7 @@ sqlite_uint64	lib/sqlite3/sqlite3.h	/^  typedef unsigned long long int sqlite_ui
 status	inc/Task.h	/^    int status; \/\/task status (e.g. 0 - NIL, 1 - BACKLOG, 2 - NEXT, etc)$/;"	m	struct:Task
 status_time	inc/Task.h	/^    time_t status_time; \/\/when was the status altered$/;"	m	struct:Task
 szOsFile	lib/sqlite3/sqlite3.h	/^  int szOsFile;            \/* Size of subclassed sqlite3_file *\/$/;"	m	struct:sqlite3_vfs
+update_parent	src/main.c	/^int update_parent(sqlite3 *_db, int _id)$/;"	f
 update_task	src/main.c	/^int update_task(struct Task *_task)$/;"	f
 usable	lib/sqlite3/sqlite3.h	/^     unsigned char usable;     \/* True if this constraint is usable *\/$/;"	m	struct:sqlite3_index_info::sqlite3_index_constraint
 xAccess	lib/sqlite3/sqlite3.h	/^  int (*xAccess)(sqlite3_vfs*, const char *zName, int flags, int *pResOut);$/;"	m	struct:sqlite3_vfs

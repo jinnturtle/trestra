@@ -3,9 +3,11 @@ CC = gcc
 CC_DBG_F = -ggdb
 LD = gcc
 NAME = trestra
-_OBJ = main.o
+_OBJ = main.o \
+       utils.o \
+       Task.o
 OBJ_D = o
-OBJ = $(patsubst %, %/$(_OBJ), $(OBJ_D))
+OBJ = $(patsubst %, $(OBJ_D)/%, $(_OBJ))
 SRC_D = src
 INC_D = inc
 INC = -I $(INC_D) \
