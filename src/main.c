@@ -15,8 +15,8 @@
 //3rd party
 #include "sqlite3.h"
 
-#define PROGRAM_NAME "trestra - Time RESource TRAcker"
-#define PROGRAM_VERSION "v0.9.9"
+#define PROGRAM_NAME "Time RESource TRAcker"
+#define PROGRAM_VERSION "v1.0.0"
 
 #ifdef DEBUG
 #  define DB_PATH "dat/db.db"
@@ -47,6 +47,7 @@ int remove_task(sqlite3* _db, unsigned _id);
 int remove_children(sqlite3 *_db, int _parent_id);
 int modify_task();
 int init_nc(void);
+int print_tasks_new(void);
 
 /*TODO
  * v1.0.0
@@ -119,7 +120,8 @@ void main_menu(void)
         case 'q': continue; break;
         default:
             do_clear = false;
-            mvprintw(22,0, "invalid selection \"%c\" (%d)", cmd, cmd);
+            mvprintw(getmaxy(stdscr) -1,0, "invalid selection \"%c\" (%d)     ",
+                     cmd, cmd);
             break;
         }
     }
@@ -183,7 +185,9 @@ int print_tasks(void)
 
     if(open_db(DB_PATH, &db) != 0) { return -1; };
 
-    char sql_txt[] = "SELECT id, name, time_estimated, time_spent "
+    char sql_txt[] = "SELECT id, parent_id, name, created_time, status_time, "
+                     "original_time_estimate, time_estimated, time_spent, "
+                     "status "
                      "FROM tasks WHERE parent_id = 0";
     sqlite3_stmt *stmt;
 
@@ -191,10 +195,18 @@ int print_tasks(void)
         return -1;
     }
 
-    move(0,0);
+    size_t max_buf_size = 1000;
+    struct Task *tasks = malloc(max_buf_size * sizeof tasks[0]);
+    unsigned fill_pos = 0;
+
     int rc = 0;
     while((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-        print_from_stmt_short(stmt, db);
+        task_init_form_stmt(stmt, &tasks[fill_pos]);
+
+        tasks[fill_pos].is_parent = check_for_children(db, tasks[fill_pos].id);
+
+        if(fill_pos <= max_buf_size) { ++fill_pos; }
+        else { break; }
     }
     if(rc != SQLITE_DONE) {
         mvprintw(0,0, "error querying the db: %s\n", sqlite3_errmsg(db));
@@ -205,9 +217,11 @@ int print_tasks(void)
         return -1;
     }
 
+    task_pager(tasks, fill_pos);
+
+    free(tasks);
     sqlite3_finalize(stmt);
     sqlite3_close(db);
-    getch();
     return 0;
 }
 
@@ -270,9 +284,9 @@ int list_children()
 {
     struct Task task = { 0 };
 
-    clear();
-
     // intro - find, print task and list header
+
+    clear();
 
     mvprintw(0,0, "*** list children ***");
 
@@ -281,34 +295,45 @@ int list_children()
 
     if(find_task(atoi(strbuf), &task) < 0) { return -1; }
 
-    mvprintw(1, 0, "parent: ");
-    print_task("hm", &task);
-    printw("\n");
+    //mvprintw(1, 0, "parent: ");
+    //print_task("hm", &task);
+    //printw("\n");
 
-    char sep[81];
-    memset(sep, '-', sizeof sep);
-    sep[80] = '\0';
-    printw("%s\n", sep);
+    //char sep[81];
+    //memset(sep, '-', sizeof sep);
+    //sep[80] = '\0';
+    //printw("%s\n", sep);
 
     //initiate db connection, prep sql statement
 
     sqlite3 *db;
     if(open_db(DB_PATH, &db) != 0) { return -1; }
 
-    char sql_txt[] = "select id, name, time_estimated, time_spent "
-                     "from tasks "
-                     "where parent_id = ?";
+    char sql_txt[] = "SELECT id, parent_id, name, created_time, status_time, "
+                     "original_time_estimate, time_estimated, time_spent, "
+                     "status "
+                     "FROM tasks "
+                     "WHERE parent_id = ?";
 
     sqlite3_stmt *stmt;
     if(compile_sql(db, sql_txt, -1, 0, &stmt, NULL) != 0 ) { return -1; }
 
     sqlite3_bind_int(stmt, 1, task.id);
 
-    //print the list
+    //fill tasks buffer for pager
+
+    size_t max_buf_size = 1000;
+    struct Task *tasks = malloc(max_buf_size * sizeof tasks[0]);
+    unsigned fill_pos = 0;
 
     int rc = 0;
     while((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-        print_from_stmt_short(stmt, db);
+        task_init_form_stmt(stmt, &tasks[fill_pos]);
+
+        tasks[fill_pos].is_parent = check_for_children(db, tasks[fill_pos].id);
+
+        if(fill_pos <= max_buf_size) { ++fill_pos; }
+        else { break; }
     }
     if(rc != SQLITE_DONE) {
         mvprintw(0,0, "error querying the db: %s\n", sqlite3_errmsg(db));
@@ -319,9 +344,11 @@ int list_children()
         return -1;
     }
 
+    task_pager(tasks, fill_pos);
+
+    free(tasks);
     sqlite3_finalize(stmt);
     sqlite3_close(db);
-    getch();
     return 0;
 }
 
@@ -750,7 +777,7 @@ int create_task()
     nc_inp(3, 0, "time estimate: ", &strbuf[0], sizeof strbuf - 1);
     task.estimate = htime_to_time(strbuf, sizeof strbuf);
     strcpy(strbuf, default_fact); //filling default value
-    nc_inp(4, 0, "time already spent (minutes): ", &strbuf[0], sizeof strbuf-1);
+    nc_inp(4, 0, "time already spent: ", &strbuf[0], sizeof strbuf-1);
     task.fact = htime_to_time(strbuf, sizeof strbuf);
 
     task.status = 0; //TODO LATER statuses are not implemented yet

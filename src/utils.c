@@ -108,7 +108,6 @@ int check_for_children(sqlite3 *db, int _parent_id)
         mvprintw(0,0, "error querying the db: %s\n", sqlite3_errmsg(db));
         printw("retcode = %d\n", rc);
         sqlite3_finalize(stmt);
-        sqlite3_close(db);
         getch();
         return -1;
     }
