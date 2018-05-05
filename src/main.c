@@ -16,7 +16,7 @@
 #include "sqlite3.h"
 
 #define PROGRAM_NAME "Time RESource TRAcker"
-#define PROGRAM_VERSION "v1.0.0"
+#define PROGRAM_VERSION "v1.0.2"
 
 #ifdef DEBUG
 #  define DB_PATH "dat/db.db"
@@ -64,12 +64,13 @@ int print_tasks_new(void);
  * ** [x] update fact and estimate times of parent when creating/modifying children
  * ** [x] delete children when deleting parent
  * * [x] make it possible to add hours, minutes, workdays, etc (e.g. +3h30m; 1d4h15m)
- * * [ ] display more tasks/lines than fit on screen (scroll, paging, etc)
- * v1+
- * * [ ] make the default database path configurable
- * * [ ] ?statuses (show on info and modify screens; lookup table in DB)
- * * [ ] add notes to tasks and store in database (probs separate table)
+ * * [x] display more tasks/lines than fit on screen (scroll, paging, etc)
+ * v1.+
  * * [ ] "advanded" menu to see/clear deleted tasks, hanging notes, etc
+ * * [ ] implement "hjkl" navigation in task listings, so memorising id's woud no longer be needed 
+ * * [ ] ?add notes to tasks and store in database (probs separate table)
+ * * [ ] ?make the default database path configurable
+ * * [ ] ?statuses (show on info and modify screens; lookup table in DB)
  */
 
 int main(void)

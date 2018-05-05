@@ -26,6 +26,8 @@ time_t htime_to_time(char *_str, size_t _n)
     time_t final_result = 0;
 
     for(unsigned i = 0; i < n; ++i) {
+        if(_str[i] == '\0') { break; }
+
         if(isdigit(_str[i])) {
             result = (result * 10) + (_str[i] - '0');
         }

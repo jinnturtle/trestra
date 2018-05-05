@@ -19,6 +19,13 @@ void print_task(char *_fmt, struct Task *_task)
 
 int task_pager(struct Task *_tasks, size_t _n)
 {
+    if(_tasks == NULL || _n < 1) {
+        clear();
+        mvprintw(0,0, "*** nothing to display ***");
+        getch();
+        return 1;
+    }
+
     unsigned ls_top = 0;
     unsigned ls_bot = 0;
     unsigned ls_top_max = _n - 1;
