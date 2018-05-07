@@ -13,10 +13,15 @@
 //third party
 #include "sqlite3.h"
 
+//time string formating to and fro
 char *format_time_str(char *_fmt, time_t _time, char *str_);
 time_t htime_to_time(char *_str, size_t _n);
 char *time_to_htime(time_t _time, char* str_, size_t _n);
 
+//ncurses utils
+void print_mid(int _y, char *_str);
+
+//database ops
 int open_db(const char *_path, sqlite3 **_db);
 int compile_sql(sqlite3 *_db, const char *_txt, int _n, unsigned _flags,
         sqlite3_stmt **_stmt, const char **_tail);

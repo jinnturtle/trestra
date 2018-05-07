@@ -16,7 +16,7 @@
 #include "sqlite3.h"
 
 #define PROGRAM_NAME "Time RESource TRAcker"
-#define PROGRAM_VERSION "v1.0.2"
+#define PROGRAM_VERSION "v1.0.3"
 
 #ifdef DEBUG
 #  define DB_PATH "dat/db.db"
@@ -66,7 +66,7 @@ int print_tasks_new(void);
  * * [x] make it possible to add hours, minutes, workdays, etc (e.g. +3h30m; 1d4h15m)
  * * [x] display more tasks/lines than fit on screen (scroll, paging, etc)
  * v1.+
- * * [ ] "advanded" menu to see/clear deleted tasks, hanging notes, etc
+ * * [ ] "advanced" menu to see/clear deleted tasks, hanging notes, etc
  * * [ ] implement "hjkl" navigation in task listings, so memorising id's woud no longer be needed 
  * * [ ] ?add notes to tasks and store in database (probs separate table)
  * * [ ] ?make the default database path configurable
@@ -76,6 +76,7 @@ int print_tasks_new(void);
 int main(void)
 {
 #ifndef DEBUG
+    //if not a debug build, we want be able to access ~/.trestra/*
     char *home = getenv("HOME");
     if(chdir(home) != 0) {
         printf("could not change dir to %s\n", home);
@@ -95,19 +96,26 @@ void main_menu(void)
 {
     int cmd = 0;
     bool do_clear = true;
+    unsigned max_entry_len = 22;
+    int mid_x = (getmaxx(stdscr) - max_entry_len) / 2;
+    char header[40];
+
+    snprintf(header, sizeof header, "*** %s %s ***",
+             PROGRAM_NAME, PROGRAM_VERSION);
 
     while(cmd != 'q') {
         if(do_clear) { clear(); }
         else { do_clear = true; }
 
-        mvprintw(0,0, "*** %s %s ***\n", PROGRAM_NAME, PROGRAM_VERSION);
-        printw("p - print tasks\n");
-        printw("l - list task children\n");
-        printw("a - activate task\n");
-        printw("m - modify task\n");
-        printw("n - create a new task\n");
-        printw("d - delete task\n");
-        printw("q - quit\n");
+        //mvprintw(0,0, "*** %s %s ***\n", PROGRAM_NAME, PROGRAM_VERSION);
+        print_mid(0, header);
+        mvprintw(1,mid_x, "p - print tasks\n");
+        mvprintw(2,mid_x, "l - list task children\n");
+        mvprintw(3,mid_x, "a - activate task\n");
+        mvprintw(4,mid_x, "m - modify task\n");
+        mvprintw(5,mid_x, "n - create a new task\n");
+        mvprintw(6,mid_x, "d - delete task\n");
+        mvprintw(7,mid_x, "q - quit\n");
 
         cmd = getch();
 
@@ -116,6 +124,7 @@ void main_menu(void)
         case 'l': list_children(); break;
         case 'a': activate_task(); break;
         case 'm': modify_task(); break;
+        case 'c': //same as 'n'
         case 'n': create_task(); break;
         case 'd': remove_task_interact(); break;
         case 'q': continue; break;
@@ -369,19 +378,12 @@ int activate_task(void)
 
     if(find_task(atoi(strbuf), &task) != 0) { return -1; }
 
-    //mvprintw(1, 0, "task: \"%s\" [%s/%s]",
-    //        task.name,
-    //        format_time_str("hms", task.estimate, est_buf),
-    //        format_time_str("hms", task.fact, elp_buf));
-    //memset(est_buf, '\0', sizeof est_buf);
-    //memset(elp_buf, '\0', sizeof elp_buf);
-
     mvprintw(1, 0, "task: ");
     print_task("hms", &task);
 
     memset(strbuf, '\0', sizeof strbuf);
     strbuf[0] = 'n';
-    nc_inp(2, 0, "select task? (y/n): ", strbuf, sizeof strbuf - 1);
+    nc_inp(2, 0, "select task? (y/n): ", strbuf, 1);
 
     if(strbuf[0] != 'y') { return 1; }
 

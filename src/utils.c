@@ -58,19 +58,10 @@ char *time_to_htime(time_t _time, char* str_, size_t _n)
     return str_;
 }
 
-int compile_sql(sqlite3 *_db, const char *_txt, int _n, unsigned _flags,
-        sqlite3_stmt **_stmt, const char **_tail)
+void print_mid(int _y, char *_str)
 {
-    if(sqlite3_prepare_v3(_db, _txt, _n, _flags, _stmt, _tail) != SQLITE_OK)
-    {
-        mvprintw(0,0, "error while compiling sql: %s\n", sqlite3_errmsg(_db));
-        getch();
-        sqlite3_finalize(*_stmt);
-        sqlite3_close(_db);
-        return -1;
-    }
-
-    return 0;
+    int x = (getmaxx(stdscr) - strlen(_str)) / 2;
+    mvprintw(_y, x, _str);
 }
 
 int open_db(const char *_path, sqlite3 **_db)
@@ -82,6 +73,21 @@ int open_db(const char *_path, sqlite3 **_db)
         getch();
         sqlite3_close(*_db);
         return 1;
+    }
+
+    return 0;
+}
+
+int compile_sql(sqlite3 *_db, const char *_txt, int _n, unsigned _flags,
+        sqlite3_stmt **_stmt, const char **_tail)
+{
+    if(sqlite3_prepare_v3(_db, _txt, _n, _flags, _stmt, _tail) != SQLITE_OK)
+    {
+        mvprintw(0,0, "error while compiling sql: %s\n", sqlite3_errmsg(_db));
+        getch();
+        sqlite3_finalize(*_stmt);
+        sqlite3_close(_db);
+        return -1;
     }
 
     return 0;
