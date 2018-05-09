@@ -16,7 +16,7 @@
 #include "sqlite3.h"
 
 #define PROGRAM_NAME "Time RESource TRAcker"
-#define PROGRAM_VERSION "v1.0.3"
+#define PROGRAM_VERSION "v1.1.0"
 
 #ifdef DEBUG
 #  define DB_PATH "dat/db.db"
@@ -35,10 +35,10 @@ void main_menu(void);
 // _n = number of bytes the routine CAN EDIT (usually sizeof char[] - 1)
 int nc_inp(int _y, int _x, const char *_prompt, char *str_, unsigned _n);
 // modifies AND returns the str_ buffer */
-int print_tasks(void);
+int explore_tasks(int _parent_id);
 int find_task(int _id, struct Task *task_);
 int list_children();
-int activate_task(void);
+int activate_task(int _task_id);
 int update_parent(sqlite3 *_db, int _id);
 int update_task(struct Task *_task);
 int create_task();
@@ -47,7 +47,6 @@ int remove_task(sqlite3* _db, unsigned _id);
 int remove_children(sqlite3 *_db, int _parent_id);
 int modify_task();
 int init_nc(void);
-int print_tasks_new(void);
 
 /*TODO
  * v1.0.0
@@ -65,9 +64,13 @@ int print_tasks_new(void);
  * ** [x] delete children when deleting parent
  * * [x] make it possible to add hours, minutes, workdays, etc (e.g. +3h30m; 1d4h15m)
  * * [x] display more tasks/lines than fit on screen (scroll, paging, etc)
+ * v1.1
+ * * [x] implement "hjkl" navigation in task listings, so memorising id's woud no longer be necessary 
+ * v1.1.+
+ * * [ ] possibility to call the menu functions from task selector,
+ *   automatically using selected task/task-id in said functions
  * v1.+
  * * [ ] "advanced" menu to see/clear deleted tasks, hanging notes, etc
- * * [ ] implement "hjkl" navigation in task listings, so memorising id's woud no longer be needed 
  * * [ ] ?add notes to tasks and store in database (probs separate table)
  * * [ ] ?make the default database path configurable
  * * [ ] ?statuses (show on info and modify screens; lookup table in DB)
@@ -109,7 +112,7 @@ void main_menu(void)
 
         //mvprintw(0,0, "*** %s %s ***\n", PROGRAM_NAME, PROGRAM_VERSION);
         print_mid(0, header);
-        mvprintw(1,mid_x, "p - print tasks\n");
+        mvprintw(1,mid_x, "e - explore tasks\n");
         mvprintw(2,mid_x, "l - list task children\n");
         mvprintw(3,mid_x, "a - activate task\n");
         mvprintw(4,mid_x, "m - modify task\n");
@@ -120,9 +123,9 @@ void main_menu(void)
         cmd = getch();
 
         switch(cmd) {
-        case 'p': print_tasks(); break;
+        case 'e': explore_tasks(0); break;
         case 'l': list_children(); break;
-        case 'a': activate_task(); break;
+        case 'a': activate_task(0); break;
         case 'm': modify_task(); break;
         case 'c': //same as 'n'
         case 'n': create_task(); break;
@@ -187,9 +190,11 @@ int nc_inp(int _y, int _x, const char *_prompt, char *str_, unsigned _n)
     return 0;
 }
 
-int print_tasks(void)
+int explore_tasks(int _parent_id)
 {
     clear();
+
+    //get link to db and compile sql statement
 
     sqlite3 *db;
 
@@ -198,12 +203,16 @@ int print_tasks(void)
     char sql_txt[] = "SELECT id, parent_id, name, created_time, status_time, "
                      "original_time_estimate, time_estimated, time_spent, "
                      "status "
-                     "FROM tasks WHERE parent_id = 0";
+                     "FROM tasks WHERE parent_id = ?";
     sqlite3_stmt *stmt;
 
     if(compile_sql(db, sql_txt, strlen(sql_txt), 0, &stmt, NULL) != 0) {
         return -1;
     }
+
+    sqlite3_bind_int(stmt, 1, _parent_id);
+
+    //fill task buffer
 
     size_t max_buf_size = 1000;
     struct Task *tasks = malloc(max_buf_size * sizeof tasks[0]);
@@ -227,11 +236,24 @@ int print_tasks(void)
         return -1;
     }
 
-    task_pager(tasks, fill_pos);
-
-    free(tasks);
     sqlite3_finalize(stmt);
     sqlite3_close(db);
+
+    //the exsplorer
+
+    int sel_id = 0;
+    int opt = 0;
+    while(opt != 'q') {
+        opt = task_selector(tasks, fill_pos, &sel_id);
+
+        switch(opt) {
+        case 'l': explore_tasks(sel_id); break;
+        case 'h': opt = 'q'; break;
+        case 's': activate_task(sel_id);
+        }
+    }
+
+    free(tasks);
     return 0;
 }
 
@@ -305,15 +327,6 @@ int list_children()
 
     if(find_task(atoi(strbuf), &task) < 0) { return -1; }
 
-    //mvprintw(1, 0, "parent: ");
-    //print_task("hm", &task);
-    //printw("\n");
-
-    //char sep[81];
-    //memset(sep, '-', sizeof sep);
-    //sep[80] = '\0';
-    //printw("%s\n", sep);
-
     //initiate db connection, prep sql statement
 
     sqlite3 *db;
@@ -362,8 +375,9 @@ int list_children()
     return 0;
 }
 
-int activate_task(void)
+int activate_task(int _task_id)
 {
+    char strbuf[MAX_ID_LEN + 1] = { 0 };
     char est_buf[20] = { 0 };
     char elp_buf[20] = { 0 };
 
@@ -373,10 +387,14 @@ int activate_task(void)
 
     struct Task task = { 0 };
 
-    char strbuf[MAX_ID_LEN + 1] = { 0 };
-    nc_inp(0, 0, "task id: ", strbuf, MAX_ID_LEN);
+    unsigned task_id = 0;
+    if(_task_id != 0) { task_id = _task_id; }
+    else {
+        nc_inp(0, 0, "task id: ", strbuf, MAX_ID_LEN);
+        task_id = atoi(strbuf);
+    }
 
-    if(find_task(atoi(strbuf), &task) != 0) { return -1; }
+    if(find_task(task_id, &task) != 0) { return -1; }
 
     mvprintw(1, 0, "task: ");
     print_task("hms", &task);
@@ -407,7 +425,7 @@ int activate_task(void)
         char tot_buf[20] = { 0 };
         char rem_buf[20] = { 0 };
 
-        mvprintw(20,0, "session: %s\n",
+        mvprintw(getmaxy(stdscr) - 3,0, "session: %s\n",
                 format_time_str("hms", elapsed, elp_buf));
 
         printw("total: %s / %s\n",

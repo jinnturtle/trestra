@@ -28,6 +28,7 @@ struct Task {
 
 void print_task(char *_fmt, struct Task *_task);
 int task_pager(struct Task *_tasks, size_t _n);
+int task_selector(struct Task *_tasks, size_t _n, int *sel_id_);
 
 int print_from_stmt_short(sqlite3_stmt *_stmt, sqlite3* _db);
 void task_init_form_stmt(sqlite3_stmt *_stmt, struct Task *_task);

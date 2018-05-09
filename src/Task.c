@@ -61,6 +61,62 @@ int task_pager(struct Task *_tasks, size_t _n)
     return 0;
 }
 
+int task_selector(struct Task *_tasks, size_t _n, int *sel_id_)
+{
+    if(_tasks == NULL || _n < 1) {
+        clear();
+        mvprintw(0,0, "*** nothing to display ***");
+        getch();
+        return 'q';
+    }
+
+    unsigned ls_top = 0;
+    unsigned ls_bot = 0;
+    unsigned ls_top_max = _n - 1;
+    unsigned ls_sel = 0;
+    int max_y = getmaxy(stdscr) - 1;
+    
+    int cmd = 0;
+
+    while(cmd != 'q') {
+        clear();
+        unsigned i = 0;
+        for(; i < _n && i < max_y && ls_top + i < _n; ++i) {
+            move(i,0);
+            if(ls_sel == ls_top + i) { attron(A_REVERSE); }
+            print_task("hm", &_tasks[ls_top + i]);
+            if(ls_sel == ls_top + i) { attroff(A_REVERSE); }
+        }
+        ls_bot = ls_top - 1 + i;
+
+        mvprintw(max_y, 0, "--- tasks %u-%u (%u/%u) ---",
+                _tasks[ls_top].id, _tasks[ls_bot].id,
+                ls_bot + 1, ls_top_max + 1);
+
+        cmd = getch();
+        switch(cmd) {
+        case 'j':
+            if(ls_top < ls_top_max && ls_sel >= ls_bot) { ++ls_top; }
+            if(ls_sel < _n && ls_sel < ls_top_max) { ++ls_sel; }
+            break;
+        case 'k':
+            if(ls_top > 0 && ls_sel <= ls_top) { --ls_top; }
+            if(ls_sel > 0) { --ls_sel; }
+            break;
+        case 'l':
+            *sel_id_ = _tasks[ls_sel].id;
+            if(_tasks[ls_sel].is_parent == 0) { return 's'; }
+            else { return cmd; }
+            break;
+        case 's':
+        case 'h':
+        case 'q': return cmd; break;
+        }
+    }
+
+    return 0;
+}
+
 //TODO this should probs go to some other source file
 int print_from_stmt_short(sqlite3_stmt *_stmt, sqlite3* _db)
 {
