@@ -16,7 +16,7 @@
 #include "sqlite3.h"
 
 #define PROGRAM_NAME "Time RESource TRAcker"
-#define PROGRAM_VERSION "v1.1.0"
+#define PROGRAM_VERSION "v1.2.1"
 
 #ifdef DEBUG
 #  define DB_PATH "dat/db.db"
@@ -31,21 +31,21 @@
 //ncurses platfor specific workaround (temporary solution)
 #define BCK_CODE 263
 
-void main_menu(void);
+void main_menu(int _id);
 // _n = number of bytes the routine CAN EDIT (usually sizeof char[] - 1)
 int nc_inp(int _y, int _x, const char *_prompt, char *str_, unsigned _n);
 // modifies AND returns the str_ buffer */
-int explore_tasks(int _parent_id);
+int get_tasks(struct Task *_tasks, size_t _n, unsigned _parent_id);
+int explore_tasks(int _parent_id, int _selected_id);
 int find_task(int _id, struct Task *task_);
-int list_children();
 int activate_task(int _task_id);
 int update_parent(sqlite3 *_db, int _id);
 int update_task(struct Task *_task);
-int create_task();
-int remove_task_interact();
+int create_task(int _parent_id);
+int remove_task_interact(unsigned _id);
 int remove_task(sqlite3* _db, unsigned _id);
 int remove_children(sqlite3 *_db, int _parent_id);
-int modify_task();
+int modify_task(int _id);
 int init_nc(void);
 
 /*TODO
@@ -66,10 +66,15 @@ int init_nc(void);
  * * [x] display more tasks/lines than fit on screen (scroll, paging, etc)
  * v1.1
  * * [x] implement "hjkl" navigation in task listings, so memorising id's woud no longer be necessary 
- * v1.1.+
- * * [ ] possibility to call the menu functions from task selector,
+ * v1.2
+ * * [x] possibility to call the menu functions from task selector,
  *   automatically using selected task/task-id in said functions
+ * * removed the list_children() function as it has become redundant
+ * * removed the 's' keybinding from task_selector as it is not needed
  * v1.+
+ * * [ ] don't let the task be activated at all if it has children as this
+ *   could lead to tracked time loss since the parents get updated on children
+ *   changes.
  * * [ ] "advanced" menu to see/clear deleted tasks, hanging notes, etc
  * * [ ] ?add notes to tasks and store in database (probs separate table)
  * * [ ] ?make the default database path configurable
@@ -89,13 +94,13 @@ int main(void)
 
     init_nc();
 
-    main_menu();
+    main_menu(0);
 
     endwin(); //end ncurses mode
     return 0;
 }
 
-void main_menu(void)
+void main_menu(int _id)
 {
     int cmd = 0;
     bool do_clear = true;
@@ -113,23 +118,21 @@ void main_menu(void)
         //mvprintw(0,0, "*** %s %s ***\n", PROGRAM_NAME, PROGRAM_VERSION);
         print_mid(0, header);
         mvprintw(1,mid_x, "e - explore tasks\n");
-        mvprintw(2,mid_x, "l - list task children\n");
-        mvprintw(3,mid_x, "a - activate task\n");
-        mvprintw(4,mid_x, "m - modify task\n");
-        mvprintw(5,mid_x, "n - create a new task\n");
-        mvprintw(6,mid_x, "d - delete task\n");
-        mvprintw(7,mid_x, "q - quit\n");
+        mvprintw(2,mid_x, "a - activate task\n");
+        mvprintw(3,mid_x, "m - modify task\n");
+        mvprintw(4,mid_x, "n - create a new task\n");
+        mvprintw(5,mid_x, "d - delete task\n");
+        mvprintw(6,mid_x, "q - quit\n");
 
         cmd = getch();
 
         switch(cmd) {
-        case 'e': explore_tasks(0); break;
-        case 'l': list_children(); break;
-        case 'a': activate_task(0); break;
-        case 'm': modify_task(); break;
+        case 'e': explore_tasks(_id, 0); break;
+        case 'a': activate_task(_id); break;
+        case 'm': modify_task(_id); break;
         case 'c': //same as 'n'
-        case 'n': create_task(); break;
-        case 'd': remove_task_interact(); break;
+        case 'n': create_task(_id); break;
+        case 'd': remove_task_interact(_id); break;
         case 'q': continue; break;
         default:
             do_clear = false;
@@ -190,10 +193,8 @@ int nc_inp(int _y, int _x, const char *_prompt, char *str_, unsigned _n)
     return 0;
 }
 
-int explore_tasks(int _parent_id)
+int get_tasks(struct Task *_tasks, size_t _n, unsigned _parent_id)
 {
-    clear();
-
     //get link to db and compile sql statement
 
     sqlite3 *db;
@@ -214,17 +215,15 @@ int explore_tasks(int _parent_id)
 
     //fill task buffer
 
-    size_t max_buf_size = 1000;
-    struct Task *tasks = malloc(max_buf_size * sizeof tasks[0]);
     unsigned fill_pos = 0;
 
     int rc = 0;
     while((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-        task_init_form_stmt(stmt, &tasks[fill_pos]);
+        task_init_form_stmt(stmt, &_tasks[fill_pos]);
 
-        tasks[fill_pos].is_parent = check_for_children(db, tasks[fill_pos].id);
+        _tasks[fill_pos].is_parent = check_for_children(db,_tasks[fill_pos].id);
 
-        if(fill_pos <= max_buf_size) { ++fill_pos; }
+        if(fill_pos <= _n) { ++fill_pos; }
         else { break; }
     }
     if(rc != SQLITE_DONE) {
@@ -239,17 +238,31 @@ int explore_tasks(int _parent_id)
     sqlite3_finalize(stmt);
     sqlite3_close(db);
 
-    //the exsplorer
+    return fill_pos;
+}
 
-    int sel_id = 0;
+int explore_tasks(int _parent_id, int _selected_id)
+{
+    clear();
+
+    size_t max_buf_size = 1000;
+    struct Task *tasks = malloc(max_buf_size * sizeof tasks[0]);
+
+    int tasks_buffered = get_tasks(tasks, max_buf_size, _parent_id);
+
+    if(tasks_buffered < 0) {
+        free(tasks);
+        return -1;
+    }
+
     int opt = 0;
     while(opt != 'q') {
-        opt = task_selector(tasks, fill_pos, &sel_id);
+        opt = task_selector(tasks, tasks_buffered, &_selected_id);
 
         switch(opt) {
-        case 'l': explore_tasks(sel_id); break;
+        case 'l': explore_tasks(_selected_id, 0); break;
         case 'h': opt = 'q'; break;
-        case 's': activate_task(sel_id);
+        case 'm': main_menu(_selected_id); break;
         }
     }
 
@@ -309,69 +322,6 @@ int find_task(int _id, struct Task *task_)
         return -1;
     }
 
-    return 0;
-}
-
-int list_children()
-{
-    struct Task task = { 0 };
-
-    // intro - find, print task and list header
-
-    clear();
-
-    mvprintw(0,0, "*** list children ***");
-
-    char strbuf[MAX_ID_LEN + 1] = { 0 };
-    nc_inp(1, 0, "task id: ", strbuf, MAX_ID_LEN);
-
-    if(find_task(atoi(strbuf), &task) < 0) { return -1; }
-
-    //initiate db connection, prep sql statement
-
-    sqlite3 *db;
-    if(open_db(DB_PATH, &db) != 0) { return -1; }
-
-    char sql_txt[] = "SELECT id, parent_id, name, created_time, status_time, "
-                     "original_time_estimate, time_estimated, time_spent, "
-                     "status "
-                     "FROM tasks "
-                     "WHERE parent_id = ?";
-
-    sqlite3_stmt *stmt;
-    if(compile_sql(db, sql_txt, -1, 0, &stmt, NULL) != 0 ) { return -1; }
-
-    sqlite3_bind_int(stmt, 1, task.id);
-
-    //fill tasks buffer for pager
-
-    size_t max_buf_size = 1000;
-    struct Task *tasks = malloc(max_buf_size * sizeof tasks[0]);
-    unsigned fill_pos = 0;
-
-    int rc = 0;
-    while((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-        task_init_form_stmt(stmt, &tasks[fill_pos]);
-
-        tasks[fill_pos].is_parent = check_for_children(db, tasks[fill_pos].id);
-
-        if(fill_pos <= max_buf_size) { ++fill_pos; }
-        else { break; }
-    }
-    if(rc != SQLITE_DONE) {
-        mvprintw(0,0, "error querying the db: %s\n", sqlite3_errmsg(db));
-        printw("retcode = %d\n", rc);
-        sqlite3_finalize(stmt);
-        sqlite3_close(db);
-        getch();
-        return -1;
-    }
-
-    task_pager(tasks, fill_pos);
-
-    free(tasks);
-    sqlite3_finalize(stmt);
-    sqlite3_close(db);
     return 0;
 }
 
@@ -558,16 +508,18 @@ int update_task(struct Task *_task)
     return 0;
 }
 
-int remove_task_interact()
+int remove_task_interact(unsigned _id)
 {
-    unsigned id = 0;
+    unsigned id = _id;
     char strbuf[MAX_ID_LEN + 1] = { 0 };
 
     clear();
     mvprintw(0,0, "*** delete task ***");
 
-    nc_inp(1,0, "task id (0 for none): ", strbuf, MAX_ID_LEN);
-    id = atoi(strbuf);
+    if(id == 0) {
+        nc_inp(1,0, "task id (0 for none): ", strbuf, MAX_ID_LEN);
+        id = atoi(strbuf);
+    }
 
     struct Task task;
     if(find_task(id, &task) != 0) { return -1; };
@@ -679,18 +631,23 @@ int remove_children(sqlite3 *_db, int _parent_id)
     return 0;
 }
 
-int modify_task()
+int modify_task(int _id)
 {
     clear();
     mvprintw(0,0, "*** modify task ***");
 
-    struct Task task = { 0 };
-    char strbuf2[100] = { 0 };
-
     char strbuf[100] = { 0 };
-    nc_inp(1, 0, "task id: ", strbuf, MAX_ID_LEN);
+    char strbuf2[100] = { 0 };
+    struct Task task = { 0 };
+    int id = _id;
 
-    if(find_task(atoi(strbuf), &task) < 0) { return -1; }
+
+    if(id == 0) {
+        nc_inp(1, 0, "task id: ", strbuf, MAX_ID_LEN);
+        id = atoi(strbuf);
+    }
+
+    if(find_task(id, &task) < 0) { return -1; }
 
     move(1, 0);
     print_task("hms", &task);
@@ -779,12 +736,15 @@ int modify_task()
     return 0;
 }
 
-int create_task()
+int create_task(int _parent_id)
 {
     char strbuf[100] = { 0 };
+    char default_parent_id[MAX_ID_LEN + 1] = "0";
     char default_est[] = "8h";
     char default_fact[] = "0";
-    char default_parent_id[] = "0";
+
+    //writing default parent id
+    snprintf(default_parent_id, sizeof default_parent_id, "%d", _parent_id);
 
     clear();
     mvprintw(0,0, "*** create task ***");
@@ -792,7 +752,7 @@ int create_task()
     struct Task task = { 0 };
     nc_inp(1, 0, "task name: ", &task.name[0], sizeof task.name - 1);
     strcpy(strbuf, default_parent_id); //filling default value
-    nc_inp(2, 0, "parent id (0 for none): ", &strbuf[0], sizeof strbuf - 1);
+    nc_inp(2, 0, "parent id (0 for none): ", &strbuf[0], MAX_ID_LEN);
     task.parent_id = atoi(strbuf);
     strcpy(strbuf, default_est); //filling default value
     nc_inp(3, 0, "time estimate: ", &strbuf[0], sizeof strbuf - 1);

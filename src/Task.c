@@ -75,6 +75,17 @@ int task_selector(struct Task *_tasks, size_t _n, int *sel_id_)
     unsigned ls_top_max = _n - 1;
     unsigned ls_sel = 0;
     int max_y = getmaxy(stdscr) - 1;
+
+    //selecting highlight position to the correct id if sel_id_ is not 0
+    if(*sel_id_ == 0) { *sel_id_ = _tasks[ls_sel].id; }
+    while(_tasks[ls_sel].id != *sel_id_) {
+        if(ls_sel == _n - 1) {
+            ls_sel = 0;
+            break;
+        }
+
+        ++ls_sel;
+    }
     
     int cmd = 0;
 
@@ -83,9 +94,9 @@ int task_selector(struct Task *_tasks, size_t _n, int *sel_id_)
         unsigned i = 0;
         for(; i < _n && i < max_y && ls_top + i < _n; ++i) {
             move(i,0);
-            if(ls_sel == ls_top + i) { attron(A_REVERSE); }
+            if(_tasks[ls_top + i].id == *sel_id_) { attron(A_REVERSE); }
             print_task("hm", &_tasks[ls_top + i]);
-            if(ls_sel == ls_top + i) { attroff(A_REVERSE); }
+            if(_tasks[ls_top + i].id == *sel_id_) { attroff(A_REVERSE); }
         }
         ls_bot = ls_top - 1 + i;
 
@@ -104,14 +115,15 @@ int task_selector(struct Task *_tasks, size_t _n, int *sel_id_)
             if(ls_sel > 0) { --ls_sel; }
             break;
         case 'l':
-            *sel_id_ = _tasks[ls_sel].id;
             if(_tasks[ls_sel].is_parent == 0) { return 's'; }
             else { return cmd; }
             break;
-        case 's':
+        case 'm':
         case 'h':
         case 'q': return cmd; break;
         }
+
+        *sel_id_ = _tasks[ls_sel].id;
     }
 
     return 0;
