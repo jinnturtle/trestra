@@ -16,7 +16,7 @@
 #include "sqlite3.h"
 
 #define PROGRAM_NAME "Time RESource TRAcker"
-#define PROGRAM_VERSION "v1.2.1"
+#define PROGRAM_VERSION "v1.2.2"
 
 #ifdef DEBUG
 #  define DB_PATH "dat/db.db"
@@ -261,6 +261,7 @@ int explore_tasks(int _parent_id, int _selected_id)
 
         switch(opt) {
         case 'l': explore_tasks(_selected_id, 0); break;
+        case 's': activate_task(_selected_id); break;
         case 'h': opt = 'q'; break;
         case 'm': main_menu(_selected_id); break;
         }
