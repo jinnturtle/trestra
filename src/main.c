@@ -16,7 +16,13 @@
 #include "sqlite3.h"
 
 #define PROGRAM_NAME "Time RESource TRAcker"
-#define PROGRAM_VERSION "v1.2.2"
+#define PROGRAM_VERSION "v1.2.3"
+#ifdef DEBUG
+#  define SPEC_VERSION "-DEV"
+#else
+#  define SPEC_VERSION ""
+#endif
+
 
 #ifdef DEBUG
 #  define DB_PATH "dat/db.db"
@@ -28,8 +34,9 @@
 #define MAX_ID_LEN 9
 #define ROOT_TASK_ID 0
 
-//ncurses platfor specific workaround (temporary solution)
-#define BCK_CODE 263
+//TODO find a permanent solution to below situation
+//ncurses platform specific workaround (temporary solution)
+//#define BCK_CODE 263
 
 void main_menu(int _id);
 // _n = number of bytes the routine CAN EDIT (usually sizeof char[] - 1)
@@ -108,8 +115,8 @@ void main_menu(int _id)
     int mid_x = (getmaxx(stdscr) - max_entry_len) / 2;
     char header[40];
 
-    snprintf(header, sizeof header, "*** %s %s ***",
-             PROGRAM_NAME, PROGRAM_VERSION);
+    snprintf(header, sizeof header, "*** %s %s%s ***",
+             PROGRAM_NAME, PROGRAM_VERSION, SPEC_VERSION);
 
     while(cmd != 'q') {
         if(do_clear) { clear(); }
@@ -166,7 +173,11 @@ int nc_inp(int _y, int _x, const char *_prompt, char *str_, unsigned _n)
 
         switch(cmd) {
         case '\n': continue;
-        case BCK_CODE:
+        //various possible backspace codes
+        case KEY_BACKSPACE:
+        case KEY_DC:
+        case 127: //some terminals seem to use this
+        //case BCK_CODE:
             str_[pos] = '\0';
             if(pos > 0) {
                 --pos;
