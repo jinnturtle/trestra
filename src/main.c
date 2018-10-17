@@ -53,6 +53,9 @@ int remove_task_interact(unsigned _id);
 int remove_task(sqlite3* _db, unsigned _id);
 int remove_children(sqlite3 *_db, int _parent_id);
 int modify_task(int _id);
+void blink_text(int _y, int _x, const char* _txt, unsigned _period,
+        unsigned _inc);
+
 int init_nc(void);
 
 /*TODO
@@ -379,9 +382,6 @@ int activate_task(int _task_id)
 
     halfdelay(1); //setting getch to wait for a limited ammount of time
 
-    unsigned blink_tmr = 0;
-    unsigned blink_period = 5; //tied to how quick, the loop is going
-    bool blink_light_on = false;
     time_t elapsed = 0;
     int cmd = 0;
     while(cmd != 'q') {
@@ -392,17 +392,7 @@ int activate_task(int _task_id)
         char tot_buf[20] = { 0 };
         char rem_buf[20] = { 0 };
 
-        /* status text with blinking effect, groundwork for when we have more
-         * statuses, like PAUSE, etc. */
-        const char status_txt[] = "ACTIVE";
-        if(blink_light_on) {attron(A_REVERSE);}
-        mvprintw(1,0, status_txt);
-        if(blink_light_on) {attroff(A_REVERSE);}
-        ++blink_tmr;
-        if(blink_tmr == blink_period) {
-            blink_tmr = 0;
-            blink_light_on = !blink_light_on;
-        }
+        blink_text(1, 0, "ACTIVE", 5, 1);
 
         mvprintw(getmaxy(stdscr) - 3,0, "session: %s\n",
                 format_time_str("hms", elapsed, elp_buf));
@@ -867,4 +857,27 @@ int init_nc(void)
     curs_set(0); //make the cursor invisible
 
     return 0;
+}
+
+/* text with blinking effect
+ * useful to e.g. make blinking status text, like PLAY, PAUSE, etc.
+ *
+ * WARNING: The effect is tied to how often this function gets called.
+ * the _inc argument should be 0 if you want to blink more than one entity in
+ * the same time, so that those instances do not increment the timer.*/
+void blink_text(int _y, int _x, const char* _txt, unsigned _period,
+        unsigned _inc)
+{
+    static unsigned blink_timer = 0;
+    static bool phase_on = true;
+
+    blink_timer += _inc;
+    if(blink_timer >= _period) {
+        blink_timer -= _period; //reseting the timer
+        phase_on = !phase_on;
+    }
+
+    if(phase_on) {attron(A_REVERSE);}
+    mvprintw(_y, _x, _txt);
+    if(phase_on) {attroff(A_REVERSE);}
 }
