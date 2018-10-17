@@ -16,7 +16,7 @@
 #include "sqlite3.h"
 
 #define PROGRAM_NAME "Time RESource TRAcker"
-#define PROGRAM_VERSION "v1.2.3"
+#define PROGRAM_VERSION "v1.2.4"
 #ifdef DEBUG
 #  define SPEC_VERSION "-DEV"
 #else
@@ -47,7 +47,7 @@ int explore_tasks(int _parent_id, int _selected_id);
 int find_task(int _id, struct Task *task_);
 int activate_task(int _task_id);
 int update_parent(sqlite3 *_db, int _id);
-int update_task(struct Task *_task);
+int update_task(struct Task *_task, unsigned _old_parent_id);
 int create_task(int _parent_id);
 int remove_task_interact(unsigned _id);
 int remove_task(sqlite3* _db, unsigned _id);
@@ -82,6 +82,8 @@ int init_nc(void);
  * * [ ] don't let the task be activated at all if it has children as this
  *   could lead to tracked time loss since the parents get updated on children
  *   changes.
+ * * [ ] activity log (separate table, with activity id as main reference)
+ *   should at least have start and end times
  * * [ ] "advanced" menu to see/clear deleted tasks, hanging notes, etc
  * * [ ] ?add notes to tasks and store in database (probs separate table)
  * * [ ] ?make the default database path configurable
@@ -408,7 +410,7 @@ int activate_task(int _task_id)
     cbreak(); //unlimiting getch wait time
 
     task.fact += elapsed; //add elapsed time
-    if(update_task(&task) != 0) { return -1; }
+    if(update_task(&task, 0) != 0) { return -1; }
 
     return 0;
 }
@@ -461,12 +463,12 @@ int update_parent(sqlite3 *_db, int _id)
     task.estimate = totals.estimate;
     task.fact = totals.fact;
 
-    if(update_task(&task) != 0) { return -1; }
+    if(update_task(&task, 0) != 0) { return -1; }
 
     return 0;
 }
 
-int update_task(struct Task *_task)
+int update_task(struct Task *_task, unsigned _old_parent_id)
 {
     if(_task == NULL) { return -1; }
 
@@ -513,6 +515,15 @@ int update_task(struct Task *_task)
 
     if(_task->parent_id != 0) {
         if(update_parent(db, _task->parent_id) < 0) { return -2; }
+        if(_task->parent_id != _old_parent_id) {
+            if(update_parent(db, _old_parent_id) < 0) {
+                clear();
+                mvprintw(0,0, "Warning, task updated successfully, but failed");
+                mvprintw(1,0, "to update the previous parent of said task.");
+                getch();
+                return -3;
+            }
+        }
     }
 
     sqlite3_finalize(stmt);
@@ -661,6 +672,9 @@ int modify_task(int _id)
 
     if(find_task(id, &task) < 0) { return -1; }
 
+    //need this in order to update the old parent, if we move task
+    unsigned old_parent_id = task.parent_id;
+
     move(1, 0);
     print_task("hms", &task);
     //printw(" \"%s\"", task.name);
@@ -739,7 +753,7 @@ int modify_task(int _id)
     if(commit == true) {
         if(task.status != old_status) { task.status_time = time(NULL); }
 
-        if(update_task(&task) != 0) { return -1; }
+        if(update_task(&task, old_parent_id) != 0) { return -1; }
     }
 
     printw(" done. (press any key)");
