@@ -16,7 +16,7 @@
 #include "sqlite3.h"
 
 #define PROGRAM_NAME "Time RESource TRAcker"
-#define PROGRAM_VERSION "v1.2.4"
+#define PROGRAM_VERSION "v1.2.5"
 #ifdef DEBUG
 #  define SPEC_VERSION "-DEV"
 #else
@@ -379,6 +379,9 @@ int activate_task(int _task_id)
 
     halfdelay(1); //setting getch to wait for a limited ammount of time
 
+    unsigned blink_tmr = 0;
+    unsigned blink_period = 5; //tied to how quick, the loop is going
+    bool blink_light_on = false;
     time_t elapsed = 0;
     int cmd = 0;
     while(cmd != 'q') {
@@ -388,6 +391,18 @@ int activate_task(int _task_id)
 
         char tot_buf[20] = { 0 };
         char rem_buf[20] = { 0 };
+
+        /* status text with blinking effect, groundwork for when we have more
+         * statuses, like PAUSE, etc. */
+        const char status_txt[] = "ACTIVE";
+        if(blink_light_on) {attron(A_REVERSE);}
+        mvprintw(1,0, status_txt);
+        if(blink_light_on) {attroff(A_REVERSE);}
+        ++blink_tmr;
+        if(blink_tmr == blink_period) {
+            blink_tmr = 0;
+            blink_light_on = !blink_light_on;
+        }
 
         mvprintw(getmaxy(stdscr) - 3,0, "session: %s\n",
                 format_time_str("hms", elapsed, elp_buf));
