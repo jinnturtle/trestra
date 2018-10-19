@@ -20,8 +20,8 @@
 == v1.2
 * [x] possibility to call the menu functions from task selector,
   automatically using selected task/task-id in said functions
-* removed the list_children() function as it has become redundant
-* removed the 's' keybinding from task_selector as it is not needed
+* [x] removed the list_children() function as it has become redundant
+* [x] removed the 's' keybinding from task_selector as it is not needed
 
 == v1.2.1...v1.2.6
 * [x] fixed the bug where when a task was moved, the old parent was not updated

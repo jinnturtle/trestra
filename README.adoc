@@ -16,7 +16,7 @@ The `l` button is also used to activate tasks (as a shortcut to activating via m
 |navigation `left` / up a level                    |`h`
 |navigation `down`                                 |`j`
 |navigation `up`                                   |`k`
-|open task/start session                           |`l`
+|list children/start session                       |`l`
 |menu                                              |`m`
 |quit *(currently acts as `h` if not at tree root)*|`q`
 |======================================================
@@ -25,16 +25,17 @@ The `l` button is also used to activate tasks (as a shortcut to activating via m
 
 .active mode controls
 [%header]
-|==================================
-|action                        |key
-|pause/continue                |`p`
-|add note *(not yet available)*|`n`
-|quit                          |`q`
-|==================================
+|====================================
+|action                          |key
+|pause/continue                  |`p`
+|add note *(not yet available)*  |`n`
+|list notes *(not yet available)*|`l`
+|quit                            |`q`
+|====================================
 
 === The Menu
 
-The general rule is that if you open the menu with a task highlighted in `explore mode` the actions performed in the menu will be applied to said task (e.g. if you chose to create a task `n`, you will be creating a child task by default).
+The general rule is that if you open the menu with a task highlighted in `explore mode` the actions performed in the menu will be applied to said task (e.g. if you choose to create a new task `n`, you will be creating a child task by default).
 
 == Functionality
 
