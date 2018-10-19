@@ -16,7 +16,7 @@
 #include "sqlite3.h"
 
 #define PROGRAM_NAME "Time RESource TRAcker"
-#define PROGRAM_VERSION "v1.2.5"
+#define PROGRAM_VERSION "v1.3.0"
 #ifdef DEBUG
 #  define SPEC_VERSION "-DEV"
 #else
@@ -33,6 +33,9 @@
 
 #define MAX_ID_LEN 9
 #define ROOT_TASK_ID 0
+
+#define STATE_ACTIVE 1
+#define STATE_PAUSE 2
 
 //TODO find a permanent solution to below situation
 //ncurses platform specific workaround (temporary solution)
@@ -53,34 +56,10 @@ int remove_task_interact(unsigned _id);
 int remove_task(sqlite3* _db, unsigned _id);
 int remove_children(sqlite3 *_db, int _parent_id);
 int modify_task(int _id);
-void blink_text(int _y, int _x, const char* _txt, unsigned _period,
-        unsigned _inc);
 
 int init_nc(void);
 
 /*TODO
- * v1.0.0
- * * [x] print time format "XXXXXhXXm"
- * * [x] creating tasks
- * * [x] removing(moving to dustbin) tasks
- * * [x] modifying tasks
- * * [x] modifying tasks - time addition and substraction
- * * [x] confirmation step when deleting task
- * * [x] confirmation step when deleting creating
- * * [x] nesting tasks (subtasks) via assigning a parent id
- * ** [x] e.g. show/list/explore/_task/etc menu option to display children
- * ** [x] indicate tasks that have children when printing
- * ** [x] update fact and estimate times of parent when creating/modifying children
- * ** [x] delete children when deleting parent
- * * [x] make it possible to add hours, minutes, workdays, etc (e.g. +3h30m; 1d4h15m)
- * * [x] display more tasks/lines than fit on screen (scroll, paging, etc)
- * v1.1
- * * [x] implement "hjkl" navigation in task listings, so memorising id's woud no longer be necessary 
- * v1.2
- * * [x] possibility to call the menu functions from task selector,
- *   automatically using selected task/task-id in said functions
- * * removed the list_children() function as it has become redundant
- * * removed the 's' keybinding from task_selector as it is not needed
  * v1.+
  * * [ ] don't let the task be activated at all if it has children as this
  *   could lead to tracked time loss since the parents get updated on children
@@ -383,25 +362,44 @@ int activate_task(int _task_id)
     halfdelay(1); //setting getch to wait for a limited ammount of time
 
     time_t elapsed = 0;
+    time_t paused_time = 0;
+    time_t pause_start = 0;
+    time_t total_paused_tm = 0;
+    int state = STATE_ACTIVE;
+    char state_txt[7] = "ACTIVE";
+
     int cmd = 0;
     while(cmd != 'q') {
-        elapsed = time(NULL) - s_tm;
+        switch(state) {
+        case STATE_ACTIVE:
+            attron(A_REVERSE);
+            mvprintw(getmaxy(stdscr) - 4, 0, state_txt);
+            attroff(A_REVERSE);
+
+            break;
+        case STATE_PAUSE:
+            attron(A_BLINK);
+            mvprintw(getmaxy(stdscr) - 4, 0, state_txt);
+            attroff(A_BLINK);
+
+            paused_time = time(NULL) - pause_start;
+
+            break;
+        }
+
+        elapsed = time(NULL) - s_tm - paused_time - total_paused_tm;
         time_t total = task.fact + elapsed;
         int remaining = task.estimate - total;
 
-        char tot_buf[20] = { 0 };
-        char rem_buf[20] = { 0 };
+        char tot_buf[20] = {0};
+        char rem_buf[20] = {0};
 
-        blink_text(1, 0, "ACTIVE", 5, 1);
-
-        mvprintw(getmaxy(stdscr) - 3,0, "session: %s\n",
-                format_time_str("hms", elapsed, elp_buf));
-
+        mvprintw(getmaxy(stdscr) - 3, 0,
+                    "session: %s\n", format_time_str("hms", elapsed, elp_buf));
         printw("total: %s / %s\n",
                 format_time_str("hms", total, tot_buf),
                 format_time_str("hms", task.estimate, est_buf));
-
-        char sign[2] = { 0 };
+        char sign[2] = {0};
         if(remaining < 0) {
             remaining = -remaining;
             sign[0] = '-';
@@ -411,6 +409,20 @@ int activate_task(int _task_id)
                 format_time_str("hms", remaining, rem_buf));
 
         cmd = getch();
+        switch(cmd) {
+        case 'p':
+            if(state == STATE_ACTIVE) {
+                state = STATE_PAUSE;
+                strcpy(state_txt, "PAUSED");
+                total_paused_tm += paused_time;
+                paused_time = 0;
+                pause_start = time(NULL);
+            }
+            else {
+                state = STATE_ACTIVE;
+                strcpy(state_txt, "ACTIVE");
+            }
+        }
     }
     cbreak(); //unlimiting getch wait time
 
@@ -857,27 +869,4 @@ int init_nc(void)
     curs_set(0); //make the cursor invisible
 
     return 0;
-}
-
-/* text with blinking effect
- * useful to e.g. make blinking status text, like PLAY, PAUSE, etc.
- *
- * WARNING: The effect is tied to how often this function gets called.
- * the _inc argument should be 0 if you want to blink more than one entity in
- * the same time, so that those instances do not increment the timer.*/
-void blink_text(int _y, int _x, const char* _txt, unsigned _period,
-        unsigned _inc)
-{
-    static unsigned blink_timer = 0;
-    static bool phase_on = true;
-
-    blink_timer += _inc;
-    if(blink_timer >= _period) {
-        blink_timer -= _period; //reseting the timer
-        phase_on = !phase_on;
-    }
-
-    if(phase_on) {attron(A_REVERSE);}
-    mvprintw(_y, _x, _txt);
-    if(phase_on) {attroff(A_REVERSE);}
 }

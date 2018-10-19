@@ -1,0 +1,33 @@
+== v1.0.0
+* [x] print time format "XXXXXhXXm"
+* [x] creating tasks
+* [x] removing(moving to dustbin) tasks
+* [x] modifying tasks
+* [x] modifying tasks - time addition and substraction
+* [x] confirmation step when deleting task
+* [x] confirmation step when deleting creating
+* [x] nesting tasks (subtasks) via assigning a parent id
+** [x] e.g. show/list/explore/_task/etc menu option to display children
+** [x] indicate tasks that have children when printing
+** [x] update fact and estimate times of parent when creating/modifying children
+** [x] delete children when deleting parent
+* [x] make it possible to add hours, minutes, workdays, etc (e.g. +3h30m; +1d4h15m)
+* [x] display more tasks/lines than fit on screen (scroll, paging, etc)
+
+== v1.1
+* [x] implement "hjkl" navigation in task listings, so memorising id's woud no longer be necessary 
+
+== v1.2
+* [x] possibility to call the menu functions from task selector,
+  automatically using selected task/task-id in said functions
+* removed the list_children() function as it has become redundant
+* removed the 's' keybinding from task_selector as it is not needed
+
+== v1.2.1...v1.2.6
+* [x] fixed the bug where when a task was moved, the old parent was not updated
+* [x] implemented graphical representatnion of mode when task is selected
+* [x] some small tweaks and fixes
+
+== v1.3
+* [x] implemented the ability to pause and active task without leaving to `explore mode`
+* [x] some changes to the representation of ACTIVE/PAUSED modes

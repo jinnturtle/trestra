@@ -1,0 +1,69 @@
+= TRESTRA (**T**ime **Res**ource **Tra**cker)
+
+A program intended to make it easier to track ones own productivity. In the future, will most likely have more functionality to cater for personal project management. Team support is not currently planned, but who knows what might happen.
+
+== Control Bindings
+
+The program features vim-like `hjkl` navigation. +
+The `l` button is also used to activate tasks (as a shortcut to activating via menu).
+
+=== Explore Mode
+
+.explore mode controls
+[%header]
+|======================================================
+|action                                            |key
+|navigation `left` / up a level                    |`h`
+|navigation `down`                                 |`j`
+|navigation `up`                                   |`k`
+|open task/start session                           |`l`
+|menu                                              |`m`
+|quit *(currently acts as `h` if not at tree root)*|`q`
+|======================================================
+
+=== Session Mode
+
+.active mode controls
+[%header]
+|==================================
+|action                        |key
+|pause/continue                |`p`
+|add note *(not yet available)*|`n`
+|quit                          |`q`
+|==================================
+
+=== The Menu
+
+The general rule is that if you open the menu with a task highlighted in `explore mode` the actions performed in the menu will be applied to said task (e.g. if you chose to create a task `n`, you will be creating a child task by default).
+
+== Functionality
+
+=== Modifying Time Values of a Tasks
+
+The general format to manipulate time values is this: `xhxmxs` Where `x` should be replaced with digits (e.g. `2h30m20s`), each subset (hours, minutes, seconds, etc) is optional.
+The most common way is to activate a task and let the timer run, but if you wish to modify the time manually you can enter the modify mode via the menu and then set the time parameters using the following syntax: +
+To set a time you should just write the time in format specified above, to add some time just prepend a plus (`+`) to said format, and if you wish to subtract some time, prepend a minus (`-`) sign accordingly. +
+*Read further for examples.*
+
+==== Tokens
+
+.The time format accepts these tokens
+* `h` - hours (one equals 60 minutes)
+* `m` - minutes (one equals 60 seconds)
+* `s` - seconds
+* `d` - a working day (one equals 8 hours)
+* `D` - a calendar day (one equals 24 hours)
+
+==== Examples
+
+Setting time::
+* Setting time to 3 hours and 25 minutes: `3h25m`
+* Setting time to 9 hours, 30 minutes and 33 seconds: `9h30m33s` ; or alternatively `1d1h30m33s`
+
+Adding time::
+* Adding 2 hours and 34 minutes `+2h34m`
+* Adding 8 hours `+8h` ; or alternatively `+1d`
+
+Subtracting time::
+* Subtract 7 hours, 23 minutes and 33 seconds: `-7h23m33s`
+* Subtract 48 hours: `-48h` ; or alternatively `-8d` ; yet another alternative `-2D`
