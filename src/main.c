@@ -16,7 +16,7 @@
 #include "sqlite3.h"
 
 #define PROGRAM_NAME "Time RESource TRAcker"
-#define PROGRAM_VERSION "v1.3.0"
+#define PROGRAM_VERSION "v1.4.0"
 #ifdef DEBUG
 #  define SPEC_VERSION "-DEV"
 #else
@@ -27,7 +27,6 @@
 #ifdef DEBUG
 #  define DB_PATH "dat/db.db"
 #else
-//TODO adaptive path to $HOME/.trestra/db.db
 #  define DB_PATH ".trestra/db.db"
 #endif
 
@@ -56,7 +55,8 @@ int remove_task_interact(unsigned _id);
 int remove_task(sqlite3* _db, unsigned _id);
 int remove_children(sqlite3 *_db, int _parent_id);
 int modify_task(int _id);
-
+int menu_create_db(void);
+int create_db(const char *_path);
 int init_nc(void);
 
 /*TODO
@@ -84,6 +84,10 @@ int main(void)
 #endif
 
     init_nc();
+
+    if(access(DB_PATH, F_OK) == -1) {
+        if(menu_create_db() == -1) {return -1;}
+    }
 
     main_menu(0);
 
@@ -857,6 +861,105 @@ int create_task(int _parent_id)
 
     sqlite3_finalize(stmt);
     sqlite3_close(db);
+    return 0;
+}
+
+int menu_create_db(void)
+{
+    char menu_name[] = "*** create new database ***";
+
+    int cmd = 0;
+    while(cmd != 'q') {
+        print_mid(0, menu_name);
+        print_mid(1, "n - create new database");
+        print_mid(2, "q - exit this menu");
+
+        cmd = getch();
+
+        switch(cmd) {
+        case 'n':
+            create_db(DB_PATH);
+            cmd = 'q'; //in order to quit after this command executes
+            break;
+        default: break;
+        }
+    }
+
+    return 0;
+}
+
+int create_db(const char *_path)
+{
+    sqlite3 *db;
+
+    if(open_db(_path, &db) != 0) {return -1;}
+
+    char sql_txt[1024*2] =
+        "CREATE TABLE \"tasks\""
+        "(`id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,"
+        "`parent_id` INTEGER,"
+        "`name` TEXT NOT NULL,"
+        "`created_time` INTEGER,"
+        "`status_time` INTEGER,"
+        "`original_time_estimate` INTEGER,"
+        "`time_estimated` INTEGER,"
+        "`time_spent` INTEGER,"
+        "`status` INTEGER,"
+        "`notes` TEXT )";
+
+    sqlite3_stmt *stmt;
+
+    if(compile_sql(db, sql_txt, -1, 0, &stmt, NULL) != 0) {
+        return -1;
+    }
+
+    //TODO should create reusable function for db error reporting like below
+    int rc = 0;
+    if((rc = sqlite3_step(stmt)) != SQLITE_DONE) {
+        mvprintw(0,0, "error creating table \"tasks\": %s\n",
+                sqlite3_errmsg(db));
+        printw("retcode = %d\n", rc);
+        sqlite3_finalize(stmt);
+        sqlite3_close(db);
+        getch();
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    strcpy(sql_txt, 
+        "CREATE TABLE \"archive\""
+        "(`id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,"
+        "`parent_id` INTEGER,"
+        "`name` TEXT NOT NULL,"
+        "`created_time` INTEGER,"
+        "`status_time` INTEGER,"
+        "`original_time_estimate` INTEGER,"
+        "`time_estimated` INTEGER,"
+        "`time_spent` INTEGER,"
+        "`status` INTEGER,"
+        "`notes` TEXT )");
+
+    if(compile_sql(db, sql_txt, -1, 0, &stmt, NULL) != 0) {
+        return -1;
+    }
+
+    //TODO should create reusable function for db error reporting like below
+    rc = 0;
+    if((rc = sqlite3_step(stmt)) != SQLITE_DONE) {
+        mvprintw(0,0, "error creating table \"archive\": %s\n",
+                sqlite3_errmsg(db));
+        printw("retcode = %d\n", rc);
+        sqlite3_finalize(stmt);
+        sqlite3_close(db);
+        getch();
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    sqlite3_close(db);
+
     return 0;
 }
 
