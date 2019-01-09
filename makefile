@@ -5,6 +5,7 @@ LD = gcc
 NAME = trestra_dbg
 _OBJ = main.o \
        utils.o \
+       dbg.o \
        Task.o
 OBJ_D = o
 OBJ = $(patsubst %, $(OBJ_D)/%, $(_OBJ))
@@ -21,6 +22,8 @@ OBJ_REL = $(patsubst %, $(OBJ_D_REL)/%, $(_OBJ))
 CC_REL_F = -O2
 
 all: $(OBJ_D) $(NAME)
+
+rebuild: clean all
 
 $(NAME): $(OBJ)
 	@echo "LD $@"

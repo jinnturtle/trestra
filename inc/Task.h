@@ -23,11 +23,11 @@ struct Task {
     unsigned estimate; //minutes estimated to complete the task
     unsigned fact; //how much time is already spent on the task
     int status; //task status (e.g. 0 - NIL, 1 - BACKLOG, 2 - NEXT, etc)
+    char notes[256];//TODO fixed array only for early DEV version, should be a pointer to dynamic array
     int is_parent;
 };
 
 void print_task(char *_fmt, struct Task *_task);
-int task_pager(struct Task *_tasks, size_t _n);
 int task_selector(struct Task *_tasks, size_t _n, int *sel_id_);
 
 int print_from_stmt_short(sqlite3_stmt *_stmt, sqlite3* _db);

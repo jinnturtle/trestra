@@ -8,12 +8,13 @@
 #include <ncurses.h>
 #include <unistd.h>
 
-//homebrew
-#include "Task.h"
-#include "utils.h"
-
 //3rd party
 #include "sqlite3.h"
+
+//homebrew
+#include "dbg.h"
+#include "Task.h"
+#include "utils.h"
 
 #define PROGRAM_NAME "Time RESource TRAcker"
 #define PROGRAM_VERSION "v1.4.0"
@@ -83,8 +84,14 @@ int main(void)
     }
 #endif
 
+    if(dbg_init() != 0) {
+        printf("error initializing dbg logging\n");
+        return -1;
+    }
+
     init_nc();
 
+    //if there is no database, prompt to create a new one
     if(access(DB_PATH, F_OK) == -1) {
         if(menu_create_db() == -1) {return -1;}
     }
@@ -92,6 +99,7 @@ int main(void)
     main_menu(0);
 
     endwin(); //end ncurses mode
+    dbg_deinit();
     return 0;
 }
 
@@ -202,7 +210,7 @@ int get_tasks(struct Task *_tasks, size_t _n, unsigned _parent_id)
 
     char sql_txt[] = "SELECT id, parent_id, name, created_time, status_time, "
                      "original_time_estimate, time_estimated, time_spent, "
-                     "status "
+                     "status, notes "
                      "FROM tasks WHERE parent_id = ?";
     sqlite3_stmt *stmt;
 
@@ -244,8 +252,13 @@ int explore_tasks(int _parent_id, int _selected_id)
 {
     clear();
 
+    /*TODO think of a fast way to determine the actual space needed for the
+     * buffer instead of just hardcoding a magic number*/
     size_t max_buf_size = 1000;
-    struct Task *tasks = malloc(max_buf_size * sizeof tasks[0]);
+    struct Task *tasks = NULL;
+    size_t mem_req = max_buf_size * sizeof tasks[0];
+    tasks = malloc(mem_req);
+    dbgf("task buffer size: %lub\n", mem_req);
 
     int tasks_buffered = get_tasks(tasks, max_buf_size, _parent_id);
 
@@ -281,7 +294,7 @@ int find_task(int _id, struct Task *task_)
 
     char sql_txt[] = "SELECT id, parent_id, name, created_time, status_time, "
                      "original_time_estimate, time_estimated, time_spent, "
-                     "status "
+                     "status, notes "
                      "FROM tasks WHERE id = ? LIMIT 1";
     sqlite3_stmt *stmt;
 
@@ -291,17 +304,26 @@ int find_task(int _id, struct Task *task_)
 
     task_->id = 0;
 
+    /* TODO (clean up code) - feels like the below loop is using functionality
+     * extremely similar to Task.c->task_init_form_stmt(),
+     * why copy similar logic here if the function can be used here?*/
     int rc = 0;
+    const char *txt_buf = NULL;
     while((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
         task_->id = sqlite3_column_int(stmt, 0);
         task_->parent_id = sqlite3_column_int(stmt, 1);
-        strcpy(task_->name, sqlite3_column_text(stmt, 2));
+        txt_buf = sqlite3_column_text(stmt, 2);
+        if(txt_buf) {strcpy(task_->name, txt_buf);}
+        txt_buf = NULL;
         task_->creation_time = sqlite3_column_int(stmt, 3);
         task_->status_time = sqlite3_column_int(stmt, 4);
         task_->orig_estimate = sqlite3_column_int(stmt, 5);
         task_->estimate = sqlite3_column_int(stmt, 6);
         task_->fact = sqlite3_column_int(stmt, 7);
         task_->status = sqlite3_column_int(stmt, 8);
+        txt_buf = sqlite3_column_text(stmt, 9);
+        if(txt_buf) {strcpy(task_->notes, txt_buf);}
+        txt_buf = NULL;
     }
     if(rc != SQLITE_DONE) {
         mvprintw(0,0, "error querying the db: %s\n", sqlite3_errmsg(db));
@@ -506,8 +528,9 @@ int update_task(struct Task *_task, unsigned _old_parent_id)
                          "original_time_estimate = ?5, "
                          "time_estimated = ?6, "
                          "time_spent = ?7, "
-                         "status = ?8 "
-                     "WHERE id = ?9";
+                         "status = ?8, "
+                         "notes = ?9 "
+                     "WHERE id = ?10";
     sqlite3_stmt *stmt;
 
     if(compile_sql(db, sql_txt, strlen(sql_txt), 0, &stmt, NULL) != 0) {
@@ -522,7 +545,8 @@ int update_task(struct Task *_task, unsigned _old_parent_id)
     sqlite3_bind_int(stmt, 6, _task->estimate);
     sqlite3_bind_int(stmt, 7, _task->fact);
     sqlite3_bind_int(stmt, 8, _task->status);
-    sqlite3_bind_int(stmt, 9, _task->id);
+    sqlite3_bind_text(stmt, 9, _task->notes, -1, NULL);
+    sqlite3_bind_int(stmt, 10, _task->id);
 
     if(sqlite3_step(stmt) != SQLITE_DONE) {
         clear();
@@ -677,14 +701,14 @@ int remove_children(sqlite3 *_db, int _parent_id)
 
 int modify_task(int _id)
 {
-    clear();
-    mvprintw(0,0, "*** modify task ***");
-
     char strbuf[100] = { 0 };
     char strbuf2[100] = { 0 };
     struct Task task = { 0 };
     int id = _id;
+    int caret_y = 0; //which line to print at, should be incremented accordingly
 
+    clear();
+    mvprintw(caret_y,0, "*** modify task ***");
 
     if(id == 0) {
         nc_inp(1, 0, "task id: ", strbuf, MAX_ID_LEN);
@@ -696,24 +720,24 @@ int modify_task(int _id)
     //need this in order to update the old parent, if we move task
     unsigned old_parent_id = task.parent_id;
 
-    move(1, 0);
+    move(++caret_y, 0);
     print_task("hms", &task);
     //printw(" \"%s\"", task.name);
 
     char prompt[40] = "parent id: ";
     snprintf(strbuf, MAX_ID_LEN, "%u", task.parent_id); //filling default value
-    nc_inp(2,0, prompt, strbuf, MAX_ID_LEN); //new value input
+    nc_inp(++caret_y,0, prompt, strbuf, MAX_ID_LEN); //new value input
     if(strbuf[0]) { task.parent_id = atoi(strbuf); }
 
     strcpy(prompt, "name: ");
     snprintf(strbuf, sizeof strbuf, "%s", task.name);
-    nc_inp(3,0, prompt, strbuf, sizeof strbuf - 1); //new value input
+    nc_inp(++caret_y,0, prompt, strbuf, sizeof strbuf - 1); //new value input
     if(strbuf[0]) { strcpy(task.name, strbuf); }
 
     strcpy(prompt, "original estimate: ");
     snprintf(strbuf, sizeof strbuf, "%s", //filling default value
             time_to_htime(task.orig_estimate, strbuf2, sizeof strbuf2));
-    nc_inp(4,0, prompt, strbuf, sizeof strbuf - 1); //new value input
+    nc_inp(++caret_y,0, prompt, strbuf, sizeof strbuf - 1); //new value input
     if(strbuf[0]) { 
         if(strbuf[0] == '+') {
             task.orig_estimate += htime_to_time(&strbuf[1], sizeof strbuf - 1);
@@ -727,7 +751,7 @@ int modify_task(int _id)
     strcpy(prompt, "estimate: ");
     snprintf(strbuf, sizeof strbuf, "%s", //filling default value
             time_to_htime(task.estimate, strbuf2, sizeof strbuf2));
-    nc_inp(5,0, prompt, strbuf, sizeof strbuf - 1); //new value input
+    nc_inp(++caret_y,0, prompt, strbuf, sizeof strbuf - 1); //new value input
     if(strbuf[0]) { 
         if(strbuf[0] == '+') {
             task.estimate += htime_to_time(&strbuf[1], sizeof strbuf - 1);
@@ -741,7 +765,7 @@ int modify_task(int _id)
     strcpy(prompt, "time spent: ");
     snprintf(strbuf, sizeof strbuf, "%s", //filling default value
             time_to_htime(task.fact, strbuf2, sizeof strbuf2));
-    nc_inp(6,0, prompt, strbuf, sizeof strbuf - 1); //new value input
+    nc_inp(++caret_y,0, prompt, strbuf, sizeof strbuf - 1); //new value input
     if(strbuf[0]) { 
         if(strbuf[0] == '+') {
             task.fact += htime_to_time(&strbuf[1], sizeof strbuf - 1);
@@ -754,13 +778,18 @@ int modify_task(int _id)
 
     strcpy(prompt, "status: ");
     snprintf(strbuf, sizeof strbuf, "%d", task.status);//filling default value
-    nc_inp(7,0, prompt, strbuf, sizeof strbuf - 1); //new value input
+    nc_inp(++caret_y,0, prompt, strbuf, sizeof strbuf - 1); //new value input
     int old_status = task.status;
     if(strbuf[0]) { task.status = atoi(strbuf); }
 
+    strcpy(prompt, "notes: ");
+    snprintf(strbuf, sizeof strbuf, "%s", task.notes);//filling default value
+    nc_inp(++caret_y,0, prompt, strbuf, sizeof strbuf - 1); //new value input
+    if(strbuf[0]) { strcpy(task.notes, strbuf); }
+
     strcpy(prompt, "submit(y/n)?: ");
     strcpy(strbuf, "n"); //writing default value
-    nc_inp(9,0, prompt, strbuf, 1);
+    nc_inp(caret_y += 2,0, prompt, strbuf, 1);
 
     bool commit = false;
     char msg[40] = { 0 };
@@ -769,7 +798,7 @@ int modify_task(int _id)
         strcpy(msg, "commiting...");
     }
     else { strcpy(msg, "discarding..."); }
-    mvprintw(10,0, "%s", msg);
+    mvprintw(++caret_y, 0, "%s", msg);
 
     if(commit == true) {
         if(task.status != old_status) { task.status_time = time(NULL); }
