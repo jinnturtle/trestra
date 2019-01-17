@@ -75,6 +75,7 @@ int task_selector(struct Task *_tasks, size_t _n, int *sel_id_)
             else { return cmd; }
             break;
         case 'm':
+        case 'i':
         case 'h':
         case 'q': return cmd; break;
         }

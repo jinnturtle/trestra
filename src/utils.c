@@ -48,7 +48,7 @@ time_t htime_to_time(char *_str, size_t _n)
     return final_result;
 }
 
-char *time_to_htime(time_t _time, char* str_, size_t _n)
+char *time_to_htime(time_t _time, char *str_, size_t _n)
 {
     time_t h = _time / 3600;
     time_t m = (_time % 3600) / 60;

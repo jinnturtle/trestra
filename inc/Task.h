@@ -16,6 +16,8 @@
 struct Task {
     char name[80];
     time_t creation_time; //date and time when the task was created
+    //TODO rework this or add a var to show when the task was last activated
+    //TODO add a variable to show when the task was last modified
     time_t status_time; //when was the status altered
     unsigned id;
     unsigned parent_id;
@@ -23,7 +25,7 @@ struct Task {
     unsigned estimate; //minutes estimated to complete the task
     unsigned fact; //how much time is already spent on the task
     int status; //task status (e.g. 0 - NIL, 1 - BACKLOG, 2 - NEXT, etc)
-    char notes[256];//TODO fixed array only for early DEV version, should be a pointer to dynamic array
+    char notes[100];//TODO fixed array only for early DEV version, should be a pointer to dynamic array
     int is_parent;
 };
 

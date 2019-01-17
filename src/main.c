@@ -55,6 +55,7 @@ int create_task(int _parent_id);
 int remove_task_interact(unsigned _id);
 int remove_task(sqlite3* _db, unsigned _id);
 int remove_children(sqlite3 *_db, int _parent_id);
+int show_task_info(int _id);
 int modify_task(int _id);
 int menu_create_db(void);
 int create_db(const char *_path);
@@ -109,34 +110,51 @@ void main_menu(int _id)
     bool do_clear = true;
     unsigned max_entry_len = 22;
     int mid_x = (getmaxx(stdscr) - max_entry_len) / 2;
-    char header[40];
+    char header[60];
 
     snprintf(header, sizeof header, "*** %s %s%s ***",
              PROGRAM_NAME, PROGRAM_VERSION, SPEC_VERSION);
 
     while(cmd != 'q') {
+        int pos_y = 0;
         if(do_clear) { clear(); }
         else { do_clear = true; }
 
         //mvprintw(0,0, "*** %s %s ***\n", PROGRAM_NAME, PROGRAM_VERSION);
-        print_mid(0, header);
-        mvprintw(1,mid_x, "e - explore tasks\n");
-        mvprintw(2,mid_x, "a - activate task\n");
-        mvprintw(3,mid_x, "m - modify task\n");
-        mvprintw(4,mid_x, "n - create a new task\n");
-        mvprintw(5,mid_x, "d - delete task\n");
-        mvprintw(6,mid_x, "q - quit\n");
+        print_mid(pos_y, header);
+        mvprintw(++pos_y,mid_x, "e - explore tasks\n");
+        if(_id > 0) {
+            mvprintw(++pos_y,mid_x, "a - activate task\n");
+            mvprintw(++pos_y,mid_x, "i - task info\n");
+            mvprintw(++pos_y,mid_x, "m - modify task\n");
+            mvprintw(++pos_y,mid_x, "d - delete task\n");
+        }
+        mvprintw(++pos_y,mid_x, "n - create a new task\n");
+        mvprintw(pos_y += 2,mid_x,   "q - quit\n");
 
         cmd = getch();
 
         switch(cmd) {
-        case 'e': explore_tasks(_id, 0); break;
-        case 'a': activate_task(_id); break;
-        case 'm': modify_task(_id); break;
-        case 'c': //same as 'n'
-        case 'n': create_task(_id); break;
-        case 'd': remove_task_interact(_id); break;
-        case 'q': continue; break;
+        case 'e':
+            explore_tasks(_id, 0); break;
+        case 'a':
+            if(_id > 0) {activate_task(_id);}
+            break;
+        case 'i':
+            if(_id > 0) {show_task_info(_id);}
+            break;
+        case 'm':
+            if(_id > 0) {modify_task(_id);}
+            break;
+        case 'd':
+            if(_id > 0) {remove_task_interact(_id);}
+            break;
+        case 'c':
+            //same as 'n'
+        case 'n':
+            create_task(_id); break;
+        case 'q':
+            continue; break;
         default:
             do_clear = false;
             mvprintw(getmaxy(stdscr) -1,0, "invalid selection \"%c\" (%d)     ",
@@ -276,6 +294,7 @@ int explore_tasks(int _parent_id, int _selected_id)
         case 's': activate_task(_selected_id); break;
         case 'h': opt = 'q'; break;
         case 'm': main_menu(_selected_id); break;
+        case 'i': show_task_info(_selected_id); break;
         }
     }
 
@@ -696,6 +715,48 @@ int remove_children(sqlite3 *_db, int _parent_id)
 
     sqlite3_finalize(stmt);
     getch();
+    return 0;
+}
+
+int show_task_info(int _id)
+{
+    char txtbuf[100] = { 0 };
+    struct Task task = { 0 };
+    int id = _id;
+    int caret_y = 0;
+    const size_t txt_preview_len = 40;
+
+    //sanity checks
+    //is it the root task? don't want to display that
+    if(id == 0) {return 1;}
+    //does the task exist?
+    if(find_task(id, &task) < 0) {return -1;}
+
+    //so far so good - let's go
+    clear();
+    mvprintw(caret_y,0, "*** Task Info ***");
+    mvprintw(++caret_y,0, "name: %s", task.name);
+    //TODO show date of creation and date of last change
+    mvprintw(++caret_y,0, "created: %s", "[placeholder]");
+    mvprintw(++caret_y,0, "last change: %s", "[placeholder]");
+    mvprintw(++caret_y,0, "id: %u", task.id);
+    mvprintw(++caret_y,0, "parent id: %d", task.parent_id);
+    time_to_htime(task.orig_estimate, txtbuf, sizeof txtbuf - 1);
+    mvprintw(++caret_y,0, "orig. estimate: %s", txtbuf);
+    time_to_htime(task.estimate, txtbuf, sizeof txtbuf - 1);
+    mvprintw(++caret_y,0, "estimate: %s", txtbuf);
+    time_to_htime(task.fact, txtbuf, sizeof txtbuf - 1);
+    mvprintw(++caret_y,0, "time spent: %s", txtbuf);
+    mvprintw(++caret_y,0, "status: %d", task.status);
+    //only taking part of the task.notes text for this preview
+    strncpy(txtbuf, task.notes, txt_preview_len);
+    if(strlen(task.notes) > txt_preview_len) {
+        strcpy(&(txtbuf[txt_preview_len - 3]), "[...]");
+    }
+    mvprintw(++caret_y,0, "notes: %s", txtbuf);
+
+    getch();
+
     return 0;
 }
 
