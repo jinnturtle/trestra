@@ -8,3 +8,6 @@ o/rel/*.o
 #executables
 trestra
 trestra_dbg
+
+#program debug log(s)
+trestra_dbg.log
