@@ -6,6 +6,7 @@ NAME = trestra_dbg
 _OBJ = main.o \
        utils.o \
        dbg.o \
+       txt_editor.o \
        Task.o
 OBJ_D = o
 OBJ = $(patsubst %, $(OBJ_D)/%, $(_OBJ))

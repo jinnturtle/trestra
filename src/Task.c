@@ -74,6 +74,9 @@ int task_selector(struct Task *_tasks, size_t _n, int *sel_id_)
             if(_tasks[ls_sel].is_parent == 0) { return 's'; }
             else { return cmd; }
             break;
+        case 'X':
+            txt_editor(_tasks[ls_sel].notes, strlen(_tasks[ls_sel].notes));
+            break;
         case 'm':
         case 'i':
         case 'h':

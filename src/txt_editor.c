@@ -1,5 +1,4 @@
-//std lib
-#include "ctype.h"
+#include "txt_editor.h" //header for this implementation file
 
 int txt_editor(char *_txt, size_t _len)
 {
@@ -10,16 +9,22 @@ int txt_editor(char *_txt, size_t _len)
     int cmd = 0;
     while(cmd != 'q') {
         //TODO display task name
-        mvpritw(0,0, "*** Text Editor ***");
+        mvprintw(0,0, "*** Text Editor ***");
 
         mvprintw(1,0, "%s", _txt);
+
+        //TODO - improve to handle text longer than one line, functionize
+        //paint caret marker
+        attron(A_REVERSE);
+        mvaddch(1,caret, _txt[caret]);
+        attroff(A_REVERSE);
 
         cmd = getch();
 
         switch(cmd) {
         case 'i': txt_edit_mode(_txt, _len, &caret); break;
-        case 'h': if(*_caret > 0) {caret;} break;
-        case 'l': if(*_caret < _len) {caret;} break;
+        case 'h': if(caret > 0) {--caret;} break;
+        case 'l': if(caret < _len - 1) {++caret;} break;
         case 'q': break;
         default: break;
         }
@@ -40,14 +45,14 @@ int txt_edit_mode(char *_txt, size_t _len, size_t *_caret)
         mvprintw(1,0, "%s", _txt);
         
         cmd = getch();
-        if(!iscntrl(cmd)) {
-            _txt[*_caret] = (char) cmd;
-            if(*_caret < _len - 1) {++*_caret;}
-        }
-        else if(is_backspace(cmd)) {
+        if(is_backspace(cmd)) {
             //TODO just a temporary solution below, do proper implementation
             _txt[*_caret] = ' ';
             if(*_caret > 0) {--*_caret;}
+        }
+        else if(!iscntrl(cmd)) {
+            _txt[*_caret] = (char) cmd;
+            if(*_caret < _len - 1) {++*_caret;}
         }
     }
 

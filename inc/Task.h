@@ -1,6 +1,7 @@
 #ifndef TASK_H
 #define TASK_H
 
+//std lib
 #include <time.h>
 #include <string.h>
 
@@ -9,6 +10,7 @@
 
 //homebrew
 #include "utils.h"
+#include "txt_editor.h"
 
 //3rd party
 #include "sqlite3.h"
