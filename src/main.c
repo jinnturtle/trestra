@@ -37,10 +37,6 @@
 #define STATE_ACTIVE 1
 #define STATE_PAUSE 2
 
-//TODO find a permanent solution to below situation
-//ncurses platform specific workaround (temporary solution)
-//#define BCK_CODE 263
-
 void main_menu(int _id);
 // _n = number of bytes the routine CAN EDIT (usually sizeof char[] - 1)
 int nc_inp(int _y, int _x, const char *_prompt, char *str_, unsigned _n);
