@@ -1,3 +1,6 @@
+#ifndef LIST_H
+#define LIST_H
+
 struct list;
 struct list_element;
 
@@ -13,3 +16,5 @@ struct list_node {
     void *data; //the payload of this node
     size_t size; //the total size of the reserved memory for the payload
 };
+
+#endif //define LIST_H

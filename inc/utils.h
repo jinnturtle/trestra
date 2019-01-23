@@ -27,4 +27,7 @@ int compile_sql(sqlite3 *_db, const char *_txt, int _n, unsigned _flags,
         sqlite3_stmt **_stmt, const char **_tail);
 int check_for_children(sqlite3 *db, int _parent_id);
 
+//other
+int is_backspace(int _key);
+
 #endif //#define UTILS_H

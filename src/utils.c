@@ -125,3 +125,15 @@ int check_for_children(sqlite3 *db, int _parent_id)
     if(id_found == 0) { return 0; }
     else { return 1; }
 }
+
+int is_backspace(int _key)
+{
+    if(_key == KEY_BACKSPACE ||
+       _key == KEY_DC ||
+       _key == 127 //some terminals seem to use this
+      )
+    {
+        return 1;
+    }
+    else {return 0;}
+}

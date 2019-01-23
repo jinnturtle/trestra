@@ -8,12 +8,13 @@
 //system (unix/linux)
 #include <ncurses.h>
 
+//3rd party
+#include "sqlite3.h"
+
 //homebrew
 #include "utils.h"
 #include "txt_editor.h"
-
-//3rd party
-#include "sqlite3.h"
+#include "hack_terminal.h"
 
 struct Task {
     char name[80];
@@ -32,8 +33,7 @@ struct Task {
 };
 
 void print_task(char *_fmt, struct Task *_task);
-int task_selector(struct Task *_tasks, size_t _n, int *sel_id_);
-
+char *task_to_str(struct Task *task, char *str, size_t n);
 int print_from_stmt_short(sqlite3_stmt *_stmt, sqlite3* _db);
 void task_init_form_stmt(sqlite3_stmt *_stmt, struct Task *_task);
 

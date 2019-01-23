@@ -17,76 +17,21 @@ void print_task(char *_fmt, struct Task *_task)
             (100.0d / _task->estimate) * _task->fact);
 }
 
-int task_selector(struct Task *_tasks, size_t _n, int *sel_id_)
+char *task_to_str(struct Task *task, char *str, size_t n)
 {
-    if(_tasks == NULL || _n < 1) {
-        clear();
-        mvprintw(0,0, "*** nothing to display ***");
-        getch();
-        return 'q';
+    char est_buf[20];
+    char fact_buf[20];
+    char parent_indicator[2] = "";
+
+    if(task->is_parent > 0) {
+       strcpy(parent_indicator, "+");
     }
 
-    unsigned ls_top = 0;
-    unsigned ls_bot = 0;
-    unsigned ls_top_max = _n - 1;
-    unsigned ls_sel = 0;
-    int max_y = getmaxy(stdscr) - 1;
-
-    //selecting highlight position to the correct id if sel_id_ is not 0
-    if(*sel_id_ == 0) { *sel_id_ = _tasks[ls_sel].id; }
-    while(_tasks[ls_sel].id != *sel_id_) {
-        if(ls_sel == _n - 1) {
-            ls_sel = 0;
-            break;
-        }
-
-        ++ls_sel;
-    }
-    
-    int cmd = 0;
-
-    while(cmd != 'q') {
-        clear();
-        unsigned i = 0;
-        for(; i < _n && i < max_y && ls_top + i < _n; ++i) {
-            move(i,0);
-            if(_tasks[ls_top + i].id == *sel_id_) { attron(A_REVERSE); }
-            print_task("hm", &_tasks[ls_top + i]);
-            if(_tasks[ls_top + i].id == *sel_id_) { attroff(A_REVERSE); }
-        }
-        ls_bot = ls_top - 1 + i;
-
-        mvprintw(max_y, 0, "--- tasks %u-%u (%u/%u) ---",
-                _tasks[ls_top].id, _tasks[ls_bot].id,
-                ls_bot + 1, ls_top_max + 1);
-
-        cmd = getch();
-        switch(cmd) {
-        case 'j':
-            if(ls_top < ls_top_max && ls_sel >= ls_bot) { ++ls_top; }
-            if(ls_sel < _n && ls_sel < ls_top_max) { ++ls_sel; }
-            break;
-        case 'k':
-            if(ls_top > 0 && ls_sel <= ls_top) { --ls_top; }
-            if(ls_sel > 0) { --ls_sel; }
-            break;
-        case 'l':
-            if(_tasks[ls_sel].is_parent == 0) { return 's'; }
-            else { return cmd; }
-            break;
-        case 'X':
-            txt_editor(_tasks[ls_sel].notes, strlen(_tasks[ls_sel].notes));
-            break;
-        case 'm':
-        case 'i':
-        case 'h':
-        case 'q': return cmd; break;
-        }
-
-        *sel_id_ = _tasks[ls_sel].id;
-    }
-
-    return 0;
+    snprintf(str, n, "%u%s: \"%s\" [%s/%s (%0.2lf%)]",
+            task->id, parent_indicator, task->name,
+            format_time_str("hm", task->fact, fact_buf),
+            format_time_str("hm", task->estimate, est_buf),
+            (100.0d / task->estimate) * task->fact);
 }
 
 //TODO this should probs go to some other source file

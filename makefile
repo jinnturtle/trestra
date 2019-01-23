@@ -7,6 +7,7 @@ _OBJ = main.o \
        utils.o \
        dbg.o \
        txt_editor.o \
+       hack_terminal.o \
        Task.o
 OBJ_D = o
 OBJ = $(patsubst %, $(OBJ_D)/%, $(_OBJ))
