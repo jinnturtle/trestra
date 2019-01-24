@@ -1,5 +1,6 @@
-# editor swap files
+# editor swap files, project tools files, etc
 *.swp
+tags
 
 # Compiled Object files
 o/*.o
