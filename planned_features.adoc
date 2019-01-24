@@ -5,6 +5,7 @@ The next release will be version 1.4
 Features slated for next release::
 * [x] menu will not show actions not available for selected task (only the root task is limited now, in the future parent tasks will have some limitations too for safety reasons (e.g. activation))
 * [x] task info preview window, a window to preview all the info of a task, this will be mapped to `i` and accessable from the menu and explore mode alike
+* [x] hacker menu - an in-application command line interface for testing and experimenting
 * [%] ability to store a body notes in a task (the length of text will be quite long or virtually unlimited)
 ** [x] truncatd notes preview from the *Task Info* window
 ** [ ] a simple text editor to edit the notes
