@@ -14,7 +14,6 @@
 //homebrew
 #include "utils.h"
 #include "txt_editor.h"
-#include "hack_terminal.h"
 
 struct Task {
     char name[80];

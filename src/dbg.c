@@ -4,7 +4,7 @@ static FILE *log_file = NULL;
 
 int dbg_init()
 {
-    log_file = fopen(DBG_FILE_PATH, "w");
+    log_file = fopen(DBG_FILE_PATH, "a");
     if(log_file == NULL) {return -1;}
 
     return 0;

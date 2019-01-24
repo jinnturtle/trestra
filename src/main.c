@@ -15,6 +15,7 @@
 #include "dbg.h"
 #include "Task.h"
 #include "utils.h"
+#include "hack_terminal.h"
 
 #define PROGRAM_NAME "Time RESource TRAcker"
 #define PROGRAM_VERSION "v1.4.0"
@@ -86,6 +87,8 @@ int main(void)
         printf("error initializing dbg logging\n");
         return -1;
     }
+
+    dbg("*** NEW SESSION ***\n");
 
     init_nc();
 
@@ -299,6 +302,7 @@ int explore_tasks(int _parent_id, int _selected_id)
     return 0;
 }
 
+//TODO move tasks like these to db_utils.h
 int find_task(int _id, struct Task *task_)
 {
     if(task_ == NULL) { return -1; }
@@ -1108,7 +1112,7 @@ int task_selector(struct Task *_tasks, size_t _n, int *sel_id_)
             else { return cmd; }
             break;
         case '`':
-            hack_terminal(_tasks[ls_sel]);
+            hack_terminal(&_tasks[ls_sel]);
             break;
         case 'X':
             txt_editor(_tasks[ls_sel].notes, strlen(_tasks[ls_sel].notes));

@@ -12,8 +12,7 @@
 #include "Task.h"
 #include "dbg.h"
 
-//void hack_terminal(struct Task *task);
-void hack_terminal();
+void hack_terminal(struct Task *task);
 char *cmd_line(int y, int x, char *txt, size_t n);
 void hack_terminal_adv_history(char **hist, size_t hist_len);
 
