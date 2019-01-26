@@ -41,7 +41,7 @@ void hack_terminal(struct Task *task)
 
         //print history
         for(int i = 0; i < hist_window_h; ++i) {
-            mvprintw(y_pos++, 0, ":%s", hist[hist_window_h - 1 - i]);
+            mvprintw(y_pos++, 0, "%02d:%s", i+1, hist[hist_window_h - 1 - i]);
             clrtoeol();
         }
 
@@ -55,6 +55,11 @@ void hack_terminal(struct Task *task)
             task_to_str(task, txt_buf, sizeof txt_buf);
             hack_terminal_adv_history(hist, hist_len);
             strcpy(hist[0], txt_buf);
+            strcpy(cmd, "");
+        }
+        if(strcmp(cmd, "/print_task_notes") == 0) {
+            hack_terminal_adv_history(hist, hist_len);
+            strcpy(hist[0], task->notes);
             strcpy(cmd, "");
         }
     }
