@@ -27,7 +27,7 @@ char *task_to_str(struct Task *task, char *str, size_t n)
        strcpy(parent_indicator, "+");
     }
 
-    snprintf(str, n, "%u%s: \"%s\" [%s/%s (%0.2lf%)]",
+    snprintf(str, n, "%u%s: \"%s\" [%s/%s (%0.2lf%%)]",
             task->id, parent_indicator, task->name,
             format_time_str("hm", task->fact, fact_buf),
             format_time_str("hm", task->estimate, est_buf),

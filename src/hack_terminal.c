@@ -33,8 +33,7 @@ void hack_terminal(struct Task *task)
 
     while(strcmp(cmd, "/exit") != 0) {
         if(strcmp(cmd, "") != 0) {
-            hack_terminal_adv_history(hist, hist_len);
-            strcpy(hist[0], cmd);
+            hack_terminal_add_ln(hist, hist_len, cmd, ln_len);
         }
 
         y_pos = 0;
@@ -53,13 +52,25 @@ void hack_terminal(struct Task *task)
             //TODO
             char txt_buf[ln_len];
             task_to_str(task, txt_buf, sizeof txt_buf);
-            hack_terminal_adv_history(hist, hist_len);
-            strcpy(hist[0], txt_buf);
+            hack_terminal_add_ln(hist, hist_len, txt_buf, ln_len);
             strcpy(cmd, "");
         }
-        if(strcmp(cmd, "/print_task_notes") == 0) {
-            hack_terminal_adv_history(hist, hist_len);
-            strcpy(hist[0], task->notes);
+        else if(strcmp(cmd, "/print_task_notes") == 0) {
+            hack_terminal_add_ln(hist, hist_len, task->notes, ln_len);
+            strcpy(cmd, "");
+        }
+        else if(strcmp(cmd, "/edit_notes") == 0) {
+            hack_terminal_add_ln(hist, hist_len, "[to be implemented]", ln_len);
+            strcpy(cmd, "");
+        }
+        else if(strcmp(cmd, "/test_editor") == 0) {
+            char test_notes[] =
+                    "these notes are meant to test the editor\n"
+                    "one of the tests is multiline support\n"
+                    "thought about tabs, but naah - spaces for the win";
+            size_t caret = 0;
+            txt_edit_mode(test_notes, sizeof(test_notes), &caret);
+            hack_terminal_add_ln(hist, hist_len, test_notes, ln_len);
             strcpy(cmd, "");
         }
     }
@@ -107,4 +118,15 @@ char *cmd_line(int y, int x, char *txt, size_t n)
     }
 
     return txt;
+}
+
+void hack_terminal_add_ln(char **hist, size_t hist_len, char *ln, size_t n)
+{
+    char *tok_beg = strtok(ln, "\n");
+
+    while(tok_beg != NULL) {
+        hack_terminal_adv_history(hist, hist_len);
+        strncpy(hist[0], tok_beg, n);
+        tok_beg = strtok(NULL, "\n");
+    }
 }

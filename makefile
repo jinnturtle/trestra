@@ -25,8 +25,6 @@ CC_REL_F = -O2
 
 all: $(OBJ_D) $(NAME)
 
-rebuild: clean all
-
 $(NAME): $(OBJ)
 	@echo "LD $@"
 	@$(LD) -o $@ $^ $(INC_O) $(LIBS)

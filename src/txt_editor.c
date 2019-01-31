@@ -42,17 +42,39 @@ int txt_edit_mode(char *_txt, size_t _len, size_t *_caret)
 
     int cmd = 0;
     while(cmd != esc_key) {
-        mvprintw(1,0, "%s", _txt);
+        //mvprintw(1,0, "%s", _txt);
+        move(1,0);
+        for(size_t i = 0; i < _len; ++i) {
+            if(i == *_caret) {
+                attron(A_REVERSE);
+                addch(_txt[i]);
+                attroff(A_REVERSE);
+            }
+            addch(_txt[i]);
+        }
+
+        //TODO below nesting too deep - revise structure, consider other methods
         
         cmd = getch();
-        if(is_backspace(cmd)) {
-            //TODO just a temporary solution below, do proper implementation
-            _txt[*_caret] = ' ';
+        switch(cmd) {
+        case KEY_LEFT:
             if(*_caret > 0) {--*_caret;}
-        }
-        else if(!iscntrl(cmd)) {
-            _txt[*_caret] = (char) cmd;
-            if(*_caret < _len - 1) {++*_caret;}
+            break;
+        case KEY_RIGHT:
+            //TODO avoid using magic number
+            if(*_caret < 80) {++*_caret;}
+            break;
+        default:
+            if(is_backspace(cmd)) {
+                //TODO just a temporary solution below, need a proper one
+                _txt[*_caret] = ' ';
+                if(*_caret > 0) {--*_caret;}
+            }
+            else if(!iscntrl(cmd)) {
+                _txt[*_caret] = (char) cmd;
+                if(*_caret < _len - 1) {++*_caret;}
+            }
+            break;
         }
     }
 
