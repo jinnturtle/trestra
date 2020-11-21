@@ -8,7 +8,8 @@ _OBJ = main.o \
        dbg.o \
        txt_editor.o \
        hack_terminal.o \
-       Task.o
+       Task.o \
+       task_explorer.o
 OBJ_D = o
 OBJ = $(patsubst %, $(OBJ_D)/%, $(_OBJ))
 SRC_D = src

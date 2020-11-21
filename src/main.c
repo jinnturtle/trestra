@@ -56,7 +56,7 @@ int show_task_info(int _id);
 int modify_task(int _id);
 int menu_create_db(void);
 int create_db(const char *_path);
-int task_selector(struct Task *_tasks, size_t _n, int *sel_id_);
+int task_explorer(struct Task *_tasks, size_t _n, int *sel_id_);
 int init_nc(void);
 
 /*TODO
@@ -287,7 +287,7 @@ int explore_tasks(int _parent_id, int _selected_id)
 
     int opt = 0;
     while(opt != 'q') {
-        opt = task_selector(tasks, tasks_buffered, &_selected_id);
+        opt = task_explorer(tasks, tasks_buffered, &_selected_id);
 
         switch(opt) {
         case 'l': explore_tasks(_selected_id, 0); break;
@@ -332,7 +332,7 @@ int find_task(int _id, struct Task *task_)
     while((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
         task_->id = sqlite3_column_int(stmt, 0);
         task_->parent_id = sqlite3_column_int(stmt, 1);
-        txt_buf = sqlite3_column_text(stmt, 2);
+        txt_buf = (const char*)sqlite3_column_text(stmt, 2);
         if(txt_buf) {strcpy(task_->name, txt_buf);}
         txt_buf = NULL;
         task_->creation_time = sqlite3_column_int(stmt, 3);
@@ -341,7 +341,7 @@ int find_task(int _id, struct Task *task_)
         task_->estimate = sqlite3_column_int(stmt, 6);
         task_->fact = sqlite3_column_int(stmt, 7);
         task_->status = sqlite3_column_int(stmt, 8);
-        txt_buf = sqlite3_column_text(stmt, 9);
+        txt_buf = (const char*)sqlite3_column_text(stmt, 9);
         if(txt_buf) {strcpy(task_->notes, txt_buf);}
         txt_buf = NULL;
     }
@@ -1050,81 +1050,6 @@ int create_db(const char *_path)
     sqlite3_finalize(stmt);
 
     sqlite3_close(db);
-
-    return 0;
-}
-
-int task_selector(struct Task *_tasks, size_t _n, int *sel_id_)
-{
-    if(_tasks == NULL || _n < 1) {
-        clear();
-        mvprintw(0,0, "*** nothing to display ***");
-        getch();
-        return 'q';
-    }
-
-    unsigned ls_top = 0;
-    unsigned ls_bot = 0;
-    unsigned ls_top_max = _n - 1;
-    unsigned ls_sel = 0;
-    int max_y = getmaxy(stdscr) - 1;
-
-    //selecting highlight position to the correct id if sel_id_ is not 0
-    if(*sel_id_ == 0) { *sel_id_ = _tasks[ls_sel].id; }
-    while(_tasks[ls_sel].id != *sel_id_) {
-        if(ls_sel == _n - 1) {
-            ls_sel = 0;
-            break;
-        }
-
-        ++ls_sel;
-    }
-    
-    int cmd = 0;
-
-    while(cmd != 'q') {
-        clear();
-        unsigned i = 0;
-        for(; i < _n && i < max_y && ls_top + i < _n; ++i) {
-            move(i,0);
-            if(_tasks[ls_top + i].id == *sel_id_) { attron(A_REVERSE); }
-            print_task("hm", &_tasks[ls_top + i]);
-            if(_tasks[ls_top + i].id == *sel_id_) { attroff(A_REVERSE); }
-        }
-        ls_bot = ls_top - 1 + i;
-
-        mvprintw(max_y, 0, "--- tasks %u-%u (%u/%u) ---",
-                _tasks[ls_top].id, _tasks[ls_bot].id,
-                ls_bot + 1, ls_top_max + 1);
-
-        cmd = getch();
-        switch(cmd) {
-        case 'j':
-            if(ls_top < ls_top_max && ls_sel >= ls_bot) { ++ls_top; }
-            if(ls_sel < _n && ls_sel < ls_top_max) { ++ls_sel; }
-            break;
-        case 'k':
-            if(ls_top > 0 && ls_sel <= ls_top) { --ls_top; }
-            if(ls_sel > 0) { --ls_sel; }
-            break;
-        case 'l':
-            if(_tasks[ls_sel].is_parent == 0) { return 's'; }
-            else { return cmd; }
-            break;
-        case '`':
-            hack_terminal(&_tasks[ls_sel]);
-            break;
-        case 'X':
-            txt_editor(_tasks[ls_sel].notes, strlen(_tasks[ls_sel].notes));
-            break;
-        case 'm':
-        case 'i':
-        case 'h':
-        case 'q': return cmd; break;
-        }
-
-        *sel_id_ = _tasks[ls_sel].id;
-    }
 
     return 0;
 }
