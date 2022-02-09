@@ -7,7 +7,7 @@
  * there */
 void hack_terminal(struct Task *task)
 {
-    dbg("*** hack terminal accessed ***\n");
+    dbg("*** hack terminal accessed ***");
 
     const size_t ln_len = 81;
     const size_t hist_len = 20;
@@ -21,9 +21,9 @@ void hack_terminal(struct Task *task)
     for(size_t i = 0; i < hist_len; ++i) {
         hist[i] = malloc(ln_len * sizeof *hist[i]);
         hist[i][0] = '\0';
-        if(i == hist_len - 1) {dbgf("terminal lines allocated[0 - %ld]\n", i);}
+        if(i == hist_len - 1) {dbgf("terminal lines allocated[0 - %ld]", i);}
     }
-    dbgf("memory allocated for terminal: %ldb\n",
+    dbgf("memory allocated for terminal: %ldb",
         (hist_len * sizeof *hist) + (hist_len * (ln_len * sizeof *hist[0])));
 
     clear();

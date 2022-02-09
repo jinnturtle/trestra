@@ -33,7 +33,7 @@ void dbg(const char *_txt)
     snprintf(time_buf + rc, sizeof time_buf - rc, ".%06ld", ts.tv_nsec / 1000);
 
     //fprintf(stderr, "DBG[%s](L%d): %s", time_buf, _lvl, _txt);
-    fprintf(log_file, "DBG[%s]: %s", time_buf, _txt);
+    fprintf(log_file, "%s[DBG]: %s\n", time_buf, _txt);
 }
 
 //void dbgf(int _lvl, const char *_fmt, ...)

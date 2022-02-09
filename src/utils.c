@@ -126,6 +126,57 @@ int check_for_children(sqlite3 *db, int _parent_id)
     else { return 1; }
 }
 
+/* Returns filepath to the database, or NULL on error.
+ * It is up to the caller to free memory.
+ *
+ * Config order of priority:
+ * 1. TRESTRA_DB_PATH environment variable
+ * 2. XDG_DATA_HOME environment variable
+ * 3. $HOME/.local/share
+ */
+char* get_db_filepath(void)
+{
+    char* db_filepath = NULL;
+    char* buf = getenv(ENV_DB_FILEPATH);
+    if (buf) {
+        db_filepath = malloc((strlen(buf) + 1) * sizeof(*db_filepath));
+        strcpy(db_filepath, buf);
+    }
+
+#if 0
+//#ifdef DEBUG
+    db_filepath = "dat/db.db";
+#else
+    if (!db_filepath) { 
+        const char db_file_subpath[] = "/trestra/db.db";
+        char *data_home = getenv(ENV_DATA_HOME);
+        size_t db_filepath_len = 1; // +1 size for null terminator at the end
+
+        if (data_home == NULL) {
+            const char data_home_subpath[] = "/.local/share";
+            dbgf("data home not set (%s), will set default", ENV_DATA_HOME);
+
+            char *home = getenv("HOME");
+            if (home == NULL) {
+                printf("HOME not set");
+                return NULL;
+            }
+
+            db_filepath_len += strlen(home) + strlen(data_home_subpath)
+                + strlen(db_file_subpath);
+            db_filepath = malloc(db_filepath_len * sizeof(*db_filepath));
+            sprintf(db_filepath, "%s%s%s",
+                    home, data_home_subpath, db_file_subpath);
+        } else {
+            db_filepath_len += strlen(data_home) + strlen(db_file_subpath);
+            db_filepath = malloc(db_filepath_len * sizeof(*db_filepath));
+            sprintf(db_filepath, "%s%s", data_home, db_file_subpath);
+        }
+    }
+#endif // #ifdef DEBUG
+    return db_filepath;
+}
+
 int is_backspace(int _key)
 {
     if(_key == KEY_BACKSPACE ||

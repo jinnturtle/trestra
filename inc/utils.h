@@ -8,10 +8,15 @@
 #include <ctype.h> //isdigit(), isanum(), etc
 
 //system unix/linux
+#include <stdlib.h>
 #include <ncurses.h>
 
 //third party
 #include "sqlite3.h"
+
+//homebrew
+#include "dbg.h"
+#include "config.h"
 
 //time string formating to and fro
 char *format_time_str(char *_fmt, time_t _time, char *str_);
@@ -28,6 +33,7 @@ int compile_sql(sqlite3 *_db, const char *_txt, int _n, unsigned _flags,
 int check_for_children(sqlite3 *db, int _parent_id);
 
 //other
+char* get_db_filepath(void);
 int is_backspace(int _key);
 
 #endif //#define UTILS_H

@@ -18,18 +18,11 @@
 #include "hack_terminal.h"
 
 #define PROGRAM_NAME "Time RESource TRAcker"
-#define PROGRAM_VERSION "v1.4.0"
+#define PROGRAM_VERSION "v2.0.0-alpha1"
 #ifdef DEBUG
 #  define SPEC_VERSION "-DEV"
 #else
 #  define SPEC_VERSION ""
-#endif
-
-
-#ifdef DEBUG
-#  define DB_PATH "dat/db.db"
-#else
-#  define DB_PATH ".trestra/db.db"
 #endif
 
 #define MAX_ID_LEN 9
@@ -54,7 +47,7 @@ int remove_task(sqlite3* _db, unsigned _id);
 int remove_children(sqlite3 *_db, int _parent_id);
 int show_task_info(int _id);
 int modify_task(int _id);
-int menu_create_db(void);
+int menu_create_db(char* _filepath);
 int create_db(const char *_path);
 int task_explorer(struct Task *_tasks, size_t _n, int *sel_id_);
 int init_nc(void);
@@ -74,32 +67,31 @@ int init_nc(void);
 
 int main(void)
 {
-#ifndef DEBUG
-    //if not a debug build, we want be able to access ~/.trestra/*
-    char *home = getenv("HOME");
-    if(chdir(home) != 0) {
-        printf("could not change dir to %s\n", home);
-        return -1;
-    }
-#endif
-
     if(dbg_init() != 0) {
         printf("error initializing dbg logging\n");
         return -1;
     }
 
-    dbg("*** NEW SESSION ***\n");
+    dbg("*** NEW SESSION ***");
 
     init_nc();
 
     //if there is no database, prompt to create a new one
-    if(access(DB_PATH, F_OK) == -1) {
-        if(menu_create_db() == -1) {return -1;}
+    char* db_filepath = get_db_filepath();
+    if (!db_filepath) {
+        dbg("error getting db_filepath");
+        return -1;
+    }
+    dbgf("db_filepath == %s", db_filepath);
+
+    if(access(db_filepath, F_OK) == -1) {
+        if(menu_create_db(db_filepath) == -1) { return -1; }
     }
 
     main_menu(0);
 
     endwin(); //end ncurses mode
+    free(db_filepath);
     dbg_deinit();
     return 0;
 }
@@ -224,7 +216,9 @@ int get_tasks(struct Task *_tasks, size_t _n, unsigned _parent_id)
 
     sqlite3 *db;
 
-    if(open_db(DB_PATH, &db) != 0) { return -1; };
+    char* db_fpath = get_db_filepath();
+    if(open_db(db_fpath, &db) != 0) { return -1; };
+    free(db_fpath);
 
     char sql_txt[] = "SELECT id, parent_id, name, created_time, status_time, "
                      "original_time_estimate, time_estimated, time_spent, "
@@ -266,6 +260,9 @@ int get_tasks(struct Task *_tasks, size_t _n, unsigned _parent_id)
     return fill_pos;
 }
 
+/* FIXME if db was not created, this errors but creates and empty file
+ * probably open_db() in get_tasks() is to blame, but not sure
+ */
 int explore_tasks(int _parent_id, int _selected_id)
 {
     clear();
@@ -276,7 +273,7 @@ int explore_tasks(int _parent_id, int _selected_id)
     struct Task *tasks = NULL;
     size_t mem_req = max_buf_size * sizeof tasks[0];
     tasks = malloc(mem_req);
-    dbgf("task buffer size: %lub\n", mem_req);
+    dbgf("task buffer size: %lub", mem_req);
 
     int tasks_buffered = get_tasks(tasks, max_buf_size, _parent_id);
 
@@ -310,7 +307,9 @@ int find_task(int _id, struct Task *task_)
 
     sqlite3 *db;
 
-    if(open_db(DB_PATH, &db) != 0) { return -1; };
+    char* db_fpath = get_db_filepath();
+    if(open_db(db_fpath, &db) != 0) { return -1; };
+    free(db_fpath);
 
     char sql_txt[] = "SELECT id, parent_id, name, created_time, status_time, "
                      "original_time_estimate, time_estimated, time_spent, "
@@ -537,7 +536,9 @@ int update_task(struct Task *_task, unsigned _old_parent_id)
 
     sqlite3 *db;
 
-    if(open_db(DB_PATH, &db) != 0) { return -1; };
+    char* db_fpath = get_db_filepath();
+    if(open_db(db_fpath, &db) != 0) { return -1; };
+    free(db_fpath);
 
     char sql_txt[] = "UPDATE tasks "
                      "SET "
@@ -633,7 +634,9 @@ int remove_task(sqlite3 *_db, unsigned _id)
 
     sqlite3 *db;
     if(_db == NULL) {
-        if(open_db(DB_PATH, &db) != 0) { return -1; }
+        char* db_fpath = get_db_filepath();
+        if(open_db(db_fpath, &db) != 0) { return -1; }
+        free(db_fpath);
     }
     else { db = _db; }
 
@@ -917,7 +920,9 @@ int create_task(int _parent_id)
     mvprintw(7,0, "creating task...");
 
     sqlite3 *db;
-    if(open_db(DB_PATH, &db) != 0) { return -1; };
+    char* db_fpath = get_db_filepath();
+    if(open_db(db_fpath, &db) != 0) { return -1; };
+    free(db_fpath);
 
     char sql_txt[] =
         "insert into tasks "
@@ -955,21 +960,23 @@ int create_task(int _parent_id)
     return 0;
 }
 
-int menu_create_db(void)
+int menu_create_db(char* _filepath)
 {
     char menu_name[] = "*** create new database ***";
 
     int cmd = 0;
     while(cmd != 'q') {
         print_mid(0, menu_name);
-        print_mid(1, "n - create new database");
-        print_mid(2, "q - exit this menu");
+        print_mid(2, "new path:");
+        print_mid(3, _filepath);
+        print_mid(5, "n - create new database");
+        print_mid(6, "q - exit this menu");
 
         cmd = getch();
 
         switch(cmd) {
         case 'n':
-            create_db(DB_PATH);
+            create_db(_filepath);
             cmd = 'q'; //in order to quit after this command executes
             break;
         default: break;
