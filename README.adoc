@@ -39,7 +39,7 @@ The general rule is that if you open the menu with a task highlighted in `explor
 
 == Functionality
 
-=== Modifying Time Values of a Tasks
+=== Modifying Time Values of Tasks
 
 The general format to manipulate time values is this: `xhxmxs` Where `x` should be replaced with digits (e.g. `2h30m20s`), each subset (hours, minutes, seconds, etc) is optional.
 The most common way is to activate a task and let the timer run, but if you wish to modify the time manually you can enter the modify mode via the menu and then set the time parameters using the following syntax: +
