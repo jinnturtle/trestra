@@ -10,7 +10,7 @@ void print_task(char *_fmt, struct Task *_task)
        strcpy(parent_indicator, "+");
     }
 
-    printw("%u%s: \"%s\" [%s/%s (%0.2lf%)]",
+    printw("%u%s: \"%s\" [%s/%s (%0.2lf%%)]",
             _task->id, parent_indicator, _task->name,
             format_time_str(_fmt, _task->fact, fact_buf),
             format_time_str(_fmt, _task->estimate, est_buf),
@@ -53,7 +53,7 @@ int print_from_stmt_short(sqlite3_stmt *_stmt, sqlite3* _db)
         strcpy(parent_indicator, "+");
     }
 
-    printw("%d%s: \"%s\" [%s/%s (%0.2lf%)]\n",
+    printw("%d%s: \"%s\" [%s/%s (%0.2lf%%)]\n",
             id, parent_indicator, name,
             format_time_str("hm", fact, fact_buf),
             format_time_str("hm", estimate, est_buf),

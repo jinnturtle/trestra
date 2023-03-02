@@ -29,5 +29,30 @@
 * [x] some small tweaks and fixes
 
 == v1.3
-* [x] implemented the ability to pause and active task without leaving to `explore mode`
+* [x] implemented the ability to pause and active task without leaving to
+`explore mode`
 * [x] some changes to the representation of ACTIVE/PAUSED modes
+
+== TODO v2.0
+* [ ] bug: fix warnings
+* [ ] bug: old task is not updated in UI if drilling up after modifying children
+* [ ] quality: refactor code
+** [ ] remove leading underscore from input args
+** [ ] make sure method "output" arguments are always at the end of args list
+* [ ] quality: fix misleading info and controls in task contextual menu,
+probably should decouple from main menu
+* [ ] quality: conform with XDG standards
+* [ ] quality: default database path should be configurable
+** env var
+** ? config file
+* [ ] quality: don't let the task be activated at all if it has children as
+this could lead to tracked time loss since the parents get updated on children
+changes.
+* [ ] feature: add task event logging, with option to leave notes during session
+** [ ] will need 1 new table, task ID as key should be fine
+* [ ] feature: overhaul the task creation/modification UI, show all 1-line
+data components (defaults if task is new) and let user select which to edit via
+movement controls
+* [ ] feature: support for long notes field related to task
+* [ ] feature: "advanced" admin menu or terminal to see/clear deleted tasks,
+hanging notes, etc

@@ -52,19 +52,6 @@ int create_db(const char *_path);
 int task_explorer(struct Task *_tasks, size_t _n, int *sel_id_);
 int init_nc(void);
 
-/*TODO
- * v1.+
- * * [ ] don't let the task be activated at all if it has children as this
- *   could lead to tracked time loss since the parents get updated on children
- *   changes.
- * * [ ] activity log (separate table, with activity id as main reference)
- *   should at least have start and end times
- * * [ ] "advanced" menu to see/clear deleted tasks, hanging notes, etc
- * * [ ] ?add notes to tasks and store in database (probs separate table)
- * * [ ] ?make the default database path configurable
- * * [ ] ?statuses (show on info and modify screens; lookup table in DB)
- */
-
 int main(void)
 {
     if(dbg_init() != 0) {
