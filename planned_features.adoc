@@ -3,14 +3,41 @@
 The next release will be version 1.4
 
 Features slated for next release::
-* [x] menu will not show actions not available for selected task (only the root task is limited now, in the future parent tasks will have some limitations too for safety reasons (e.g. activation))
-* [x] task info preview window, a window to preview all the info of a task, this will be mapped to `i` and accessable from the menu and explore mode alike
-* [x] hacker menu - an in-application command line interface for testing and experimenting
-* [%] ability to store a body notes in a task (the length of text will be quite long or virtually unlimited)
-** [x] truncatd notes preview from the *Task Info* window
+* [x] menu will not show actions not available for selected task (only the root
+  task is limited now, in the future parent tasks will have some limitations too
+  for safety reasons (e.g. activation))
+* [x] task info preview window, a window to preview all the info of a task, this
+  will be mapped to `i` and accessible from the menu and explore mode alike
+* [x] hacker menu - an in-application command line interface for testing and
+  experimenting
+* [%] ability to store a body notes in a task (the length of text will be quite
+  long or virtually unlimited)
+** [x] truncated notes preview from the *Task Info* window
 ** [ ] a simple text editor to edit the notes
 
 Near future::
-* [ ] date and time of last activation and of last modification will recorded, this info will be accessible from the *Task Info* window (`i`)
-* [ ] `q` will quit the application if in explore mode (will probably open a prompt window), instead of just going one level up the hierarchy
-* [ ] will remove the current *Modify Task* window, instead the user will be able to select a piece of information they want to modify from the *Task Info* window
+* [ ] date and time of last activation and of last modification will recorded,
+  this info will be accessible from the *Task Info* window (`i`)
+* [ ] `q` will quit the application if in explore mode (will probably open a
+  prompt window), instead of just going one level up the hierarchy
+
+== 2.x
+
+* [ ] Reworked *Modify Task* window: Ability to pick and choose fields to modify
+  and re-modify before submitting the changes (instead of the current
+  _sequential_ process).
+* [ ] Session log:
+** [ ] Each session on a task will be logged (task id, timestamp, notes)
+** [ ] During a session there should be a way to add notes related to that
+   session, which then get saved with the log.
+* [ ] Task list refresh:
+** [ ] A button to refresh any time.
+** [ ] Refresh things after returning from the *Modify Task* window.
+
+== Later
+
+* [ ] Tags field.
+* [ ] Metadata (key + value) field (and corresponding editor).
+* [ ] Possibility to configure additional status codes.
+* [ ] Filter (at least by tags and status).
+* [ ] Ability to bin and delete tasks.
