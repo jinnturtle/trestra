@@ -604,7 +604,7 @@ int remove_task_interact(unsigned _id)
 
     char confirm[2] = "n";
     nc_inp(3,0, "delete? (y/n): ", confirm, sizeof confirm - 1);
-    if(confirm[0] != 'y') { 
+    if(confirm[0] != 'y') {
         mvprintw(5,0, "canceled (press any key)");
         getch();
         return 0;
@@ -790,7 +790,7 @@ int modify_task(int _id)
     snprintf(strbuf, sizeof strbuf, "%s", //filling default value
             time_to_htime(task.orig_estimate, strbuf2, sizeof strbuf2));
     nc_inp(++caret_y,0, prompt, strbuf, sizeof strbuf - 1); //new value input
-    if(strbuf[0]) { 
+    if(strbuf[0]) {
         if(strbuf[0] == '+') {
             task.orig_estimate += htime_to_time(&strbuf[1], sizeof strbuf - 1);
         }
@@ -804,7 +804,7 @@ int modify_task(int _id)
     snprintf(strbuf, sizeof strbuf, "%s", //filling default value
             time_to_htime(task.estimate, strbuf2, sizeof strbuf2));
     nc_inp(++caret_y,0, prompt, strbuf, sizeof strbuf - 1); //new value input
-    if(strbuf[0]) { 
+    if(strbuf[0]) {
         if(strbuf[0] == '+') {
             task.estimate += htime_to_time(&strbuf[1], sizeof strbuf - 1);
         }
@@ -818,7 +818,7 @@ int modify_task(int _id)
     snprintf(strbuf, sizeof strbuf, "%s", //filling default value
             time_to_htime(task.fact, strbuf2, sizeof strbuf2));
     nc_inp(++caret_y,0, prompt, strbuf, sizeof strbuf - 1); //new value input
-    if(strbuf[0]) { 
+    if(strbuf[0]) {
         if(strbuf[0] == '+') {
             task.fact += htime_to_time(&strbuf[1], sizeof strbuf - 1);
         }
@@ -851,6 +851,7 @@ int modify_task(int _id)
     }
     else { strcpy(msg, "discarding..."); }
     mvprintw(++caret_y, 0, "%s", msg);
+    refresh(); // draw before talking to db
 
     if(commit == true) {
         if(task.status != old_status) { task.status_time = time(NULL); }
@@ -922,7 +923,7 @@ int create_task(int _parent_id)
     if(compile_sql(db, sql_txt, strlen(sql_txt), 0, &stmt, NULL) != 0) {
         return -1;
     }
-    
+
     sqlite3_bind_int(stmt, 1, task.parent_id);
     sqlite3_bind_text(stmt, 2, task.name, -1, NULL);
     sqlite3_bind_int(stmt, 3, task.creation_time);
@@ -1012,7 +1013,7 @@ int create_db(const char *_path)
 
     sqlite3_finalize(stmt);
 
-    strcpy(sql_txt, 
+    strcpy(sql_txt,
         "CREATE TABLE \"archive\""
         "(`id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,"
         "`parent_id` INTEGER,"

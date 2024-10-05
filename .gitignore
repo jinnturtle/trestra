@@ -1,6 +1,7 @@
 # editor swap files, project tools files, etc
 *.swp
 tags
+TAGS
 *.kdev4
 
 # Compiled Object files
